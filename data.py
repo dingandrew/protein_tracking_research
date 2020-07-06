@@ -6,7 +6,7 @@ import sys
 import pandas as pd
 import numpy as np
 
-np.set_printoptions(threshold=sys.maxsize)
+# np.set_printoptions(threshold=sys.maxsize)
 
 base_dir = "./data/raw_data/Segmentation_and_result"
 
