@@ -3,10 +3,10 @@ import sys
 import numpy as np
 # import tensorflow as tf
 import copy
-import json
-from json import JSONEncoder
+# import json
+# from json import JSONEncoder
 from util import calc_centroid
-from network import Network as Net
+# from network import Network as Net
 
 # np.set_printoptions(threshold=sys.maxsize)
 
