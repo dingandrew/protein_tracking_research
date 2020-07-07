@@ -1,5 +1,10 @@
 import numpy as np
 
+'''
+    Some utility functions 
+
+'''
+
 
 def calc_centroid(arr):
     '''
@@ -17,3 +22,5 @@ def calc_centroid(arr):
     sumY = np.sum(arr[:, 1])
     sumZ = np.sum(arr[:, 2])
     return [sumX/length, sumY/length, sumZ/length]
+
+

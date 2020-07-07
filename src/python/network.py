@@ -14,31 +14,23 @@ class Network:
         '''
             Build the network using keras functional API
 
-        input_ = keras.layers.Input(shape=X_train.shape[1:])
-        hidden1 = keras.layers.Dense(30, activation="relu")(input_)
-        hidden2 = keras.layers.Dense(30, activation="relu")(hidden1)
-        concat = keras.layers.concatenate([input_, hidden2])
-        output = keras.layers.Dense(1)(concat)
-        model = keras.models.Model(inputs=[input_], outputs=[output])
-
-
-
         '''
 
         input_labels = keras.layers.Input(
             shape=(70, 70), batch_size=10, name='forward_input')
 
         input_full = keras.layers.Input(
-            shape=(258, 150, 13, 1), batch_size=10, name='backward_input')
+            shape=(258, 512, 13, 1), batch_size=10, name='backward_input')
 
         input_backwards = keras.layers.Input(
             shape=(70, 70), batch_size=10, name='backward_input')
 
         deep_rnn1 = keras.layers.SimpleRNN(
             units=70, return_sequences=True)(input_labels)
+
         deep_rnn2 = keras.layers.SimpleRNN(units=70)(deep_rnn1)
 
-        
+
 
         hidden_cnn = keras.layers.TimeDistributed(
             keras.layers.Conv3D(filters=64, kernel_size=3))(input_full)
@@ -50,11 +42,44 @@ class Network:
         return model
 
 
+class Simple_Model:
+    def __init__(self):
+        self.layers = []
+        self.x
+
+
+    def run():
+        model = keras.models.Sequential(layers=self.layers, name='simple')
+        model.compile(optimizer='rmsprop', loss=None, metrics=None,
+                      loss_weights=None, sample_weight_mode=None, weighted_metrics=None)
+        model.fit(x=None, y=None, batch_size=None, epochs=1, verbose=1, callbacks=None, 
+                  validation_split=0., validation_data=None, shuffle=True, class_weight=None,
+                  sample_weight=None, initial_epoch=0, steps_per_epoch=None, validation_steps=None, 
+                  validation_batch_size=None, validation_freq=1, max_queue_size=10, workers=1, 
+                  use_multiprocessing=False)
 
 
 
 
 
+class R_CNN:
+    '''
+        Subclassing API used here
+    '''
+    def __init__(self, filters, strides, activation, **kwargs):
+        '''
+            Initialize an recurrent cnn layer  
+        '''
+        super.__init__(**kwargs)
+
+
+
+
+    def call(self, inputs):
+        '''
+            pg 478
+        '''
+        pass
 
 
 

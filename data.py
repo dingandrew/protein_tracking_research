@@ -44,7 +44,7 @@ def create_dataset(path=base_dir):
 
         Input: path, to directery containing .nii files
 
-        Outputs : labled_3data(248, 150, 13, 70), raw_3data(248, 150, 13, 70)
+        Outputs : labled_3data(248, 512, 13, 70), raw_3data(248, 512, 13, 70)
     """
     labled3data = np.ndarray((280, 512, 13, 70))
     raw3data = np.ndarray((280, 512, 13, 70))
