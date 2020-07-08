@@ -2,12 +2,8 @@ import os
 import sys
 import numpy as np
 import pickle
-import tensorflow as tf
 import copy
-import json
-from json import JSONEncoder
 from util import calc_centroid, calc_euclidean_dist, save_as_json
-from network import Network as Net
 import time
 from tqdm import tqdm
 
@@ -71,7 +67,7 @@ class Tracker:
                 self.tracks[t].append(copy.deepcopy(newTrack))
 
         print('Total tracks: ', len(self.tracks))
-        print(self.tracks)
+        # print(self.tracks)
 
         with open('../../data/tracks.pickle', 'wb') as f:
             # Pickle the 'data' dictionary using the highest protocol available.
@@ -82,7 +78,7 @@ class Tracker:
             Calculate the numbers of clusters in each frame
         '''
 
-        for z in range(70):
+        for z in tqdm(range(70)):
             timeSlice = self.data[..., z]
             uniqueClusters = np.unique(timeSlice)
             self.counts.append(len(uniqueClusters))
@@ -107,7 +103,7 @@ class Tracker:
         
         # retreive the largest id from first frame and increment this will be the next id
         self.nextID = max(track.id for track in self.tracks[1]) + 1
-        print(self.nextID)
+        # print(self.nextID)
 
         # iterate through all frames, note we are checking next frame
         for currFrame in tqdm(range(1, 70)):
@@ -182,10 +178,10 @@ class Tracker:
         '''
         intersections = [] 
         for index, track in enumerate(search_frame):
-            # if np.count_nonzero(cluster == track.locs) > 0:
-            #     intersections.append(index)
-            if len(np.intersect1d(cluster, track.locs)) > 0:
+            if np.count_nonzero(cluster == track.locs) > 0:
                 intersections.append(index)
+            # if len(np.intersect1d(cluster, track.locs)) > 0:
+            #     intersections.append(index)
             
         return intersections
 
@@ -203,17 +199,13 @@ class Track:
 
 
 if __name__ == "__main__":
-    # print(tf.config.list_physical_devices('GPU'))
-    # print(tf.test.is_built_with_cuda())
-    # print(tf.test.is_built_with_gpu_support())
-
     tracker = Tracker()
     print("----------- Load labled data set ------------")
-    # tracker.load_data(labled="../../data/labled3data.npy")
+    tracker.load_data(labled="../../data/labled3data.npy")
     print("----------- Label ID's of initial frame ------------")
-    # tracker.label_initial_frame()
+    tracker.label_initial_frame()
     print("----------- Number of clusters in each frame ------------")
-    # tracker.get_clusters_per_frame()
+    tracker.get_clusters_per_frame()
     print("----------- Tracks clusters of all frames ------------")
     tracker.id_clusters(pickled_data=True)
 
