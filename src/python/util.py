@@ -36,12 +36,16 @@ def calc_euclidean_dist(p1, p2, weights):
     return sqrt(weights[0] * (p1[0] - p2[0])**2 + weights[1] * (p1[1] - p2[1])**2 + weights[2] * (p1[2] - p2[2])**2)
 
 
-def save_as_json(tracks):
+def save_as_json(tracks, centroid_thresh, weights, inter_thresh):
     '''
         Save tracks in a json format
     '''
     json_data = {}
     json_pretty = {}
+    json_data[0] = {
+        'centroid_thresh': centroid_thresh, 'weights': weights, 'inter_thresh': inter_thresh}
+    json_pretty[0] = {
+        'centroid_thresh': centroid_thresh, 'weights': weights, 'inter_thresh': inter_thresh}
     for currFrame in range(1, 71):
         for track in tracks[currFrame]:
             if track.id not in json_data.keys():
@@ -56,3 +60,11 @@ def save_as_json(tracks):
         json.dump(json_data, f, indent=4)
     with open('../../data/tracks_pretty.json', 'w') as f:
         json.dump(json_pretty, f, indent=4)
+
+
+def save_counts_json(counts):
+    '''
+        Save counts as json
+    '''
+    with open('../../data/counts.json', 'w') as f:
+        json.dump(counts, f, indent=4)

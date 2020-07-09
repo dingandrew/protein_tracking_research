@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import pickle
 import copy
-from util import calc_centroid, calc_euclidean_dist, save_as_json
+from util import calc_centroid, calc_euclidean_dist, save_as_json, save_counts_json
 import time
 from tqdm import tqdm
 
@@ -19,13 +19,13 @@ class Tracker:
         frames = [f for f in range(1, 71)]
         self.tracks = {key: []
                        for key in frames}  # contains tracks for each frame
-        self.counts = []  # the total number of tracks for each fram shoun equal these counts
+        self.counts = {}  # the total number of tracks for each fram shoun equal these counts
         self.nextID = 1
         self.data = None
-        self.labledTracks = {}
-
-        self.CENTROID_DIST_THRESH = 2
+        self.CENTROID_DIST_THRESH = 5
         self.DIST_WEIGHTS = [1, 1, 1]
+        # self.DIST_WEIGHTS = [(1/258), (1/512), (1/13)]
+        self.INTERSECT_NUM_THRESH = 10
 
     def load_data(self, labled):
         # load data
@@ -41,22 +41,17 @@ class Tracker:
 
             Output: Will populate self.tracks with track objects of each cluster
         '''
-
         for t in tqdm(range(1, 71)):
             # get frame
             timeSlice = self.data[..., t-1]
-
             # find unique clusters
             uniqueClusters = np.unique(timeSlice)
-            # print(uniqueClusters)
-
             # create an track object for each clsuter and add to tracks list
             for clusterID in uniqueClusters:
                 if clusterID == 0:
                     continue
 
                 locations = np.argwhere(timeSlice == clusterID)
-
                 if t == 1:
                     newTrack = Track(locations, clusterID, calc_centroid(
                         locations), 'active', 'init')
@@ -65,23 +60,24 @@ class Tracker:
                         locations, None, calc_centroid(locations), None, None)
 
                 self.tracks[t].append(copy.deepcopy(newTrack))
-
         print('Total tracks: ', len(self.tracks))
-        # print(self.tracks)
-
         with open('../../data/tracks.pickle', 'wb') as f:
             # Pickle the 'data' dictionary using the highest protocol available.
             pickle.dump(self.tracks, f, pickle.HIGHEST_PROTOCOL)
 
     def get_clusters_per_frame(self):
         '''
-            Calculate the numbers of clusters in each frame
+            Calculate the numbers of clusters in each frame 
+
+            Return: self.counts is populated and is also saved
         '''
 
-        for z in tqdm(range(70)):
-            timeSlice = self.data[..., z]
+        for frame in tqdm(range(70)):
+            timeSlice = self.data[..., frame]
             uniqueClusters = np.unique(timeSlice)
-            self.counts.append(len(uniqueClusters))
+            self.counts[frame + 1] = len(uniqueClusters) - 1 #subtract 1, dont count 0
+
+        save_counts_json(self.counts)
 
     def id_clusters(self, pickled_data=False):
         '''
@@ -94,7 +90,6 @@ class Tracker:
             Return: self.labledTracks a track object for each cluster that contains loc data
                     for each frame
         '''
-
         if pickled_data:
             with open('../../data/tracks.pickle', 'rb') as f:
                 # The protocol version used is detected automatically, so we do not
@@ -103,26 +98,20 @@ class Tracker:
         
         # retreive the largest id from first frame and increment this will be the next id
         self.nextID = max(track.id for track in self.tracks[1]) + 1
-        # print(self.nextID)
-
         # iterate through all frames, note we are checking next frame
         for currFrame in tqdm(range(1, 70)):
-
             # check centroid distance in the next frame
             for currTrack in self.tracks[currFrame]:
-
                 # get current track info
                 currId = currTrack.id
                 currCentroid = currTrack.centroid
                 currState = currTrack.state
                 currOrigin = currTrack.origin
                 found = False
-
                 for nextTrack in self.tracks[currFrame + 1]:
                     if nextTrack.id is None:
                         if nextTrack.centroid == currCentroid \
                         or calc_euclidean_dist(currCentroid, nextTrack.centroid, self.DIST_WEIGHTS) < self.CENTROID_DIST_THRESH:
-
                             nextTrack.id = currId
                             nextTrack.state = currState
                             nextTrack.origin = currOrigin
@@ -136,7 +125,6 @@ class Tracker:
                 #did not find the 1to1 cluster in next frame this track is dead
                 if not found:
                     currTrack.state = 'dead'
-
 
             # remaining unlabled clusters in next frame are all the result
             # of birth, split, or merge
@@ -168,7 +156,7 @@ class Tracker:
             # Pickle the 'data' dictionary using the highest protocol available.
             pickle.dump(self.tracks, f, pickle.HIGHEST_PROTOCOL)
 
-        save_as_json(self.tracks)
+        save_as_json(self.tracks, self.CENTROID_DIST_THRESH, self.DIST_WEIGHTS, self.INTERSECT_NUM_THRESH)
 
     def has_intersection(self, cluster, search_frame):
         '''
@@ -178,12 +166,24 @@ class Tracker:
         '''
         intersections = [] 
         for index, track in enumerate(search_frame):
-            if np.count_nonzero(cluster == track.locs) > 0:
+            if np.count_nonzero(cluster == track.locs) > self.INTERSECT_NUM_THRESH:
                 intersections.append(index)
             # if len(np.intersect1d(cluster, track.locs)) > 0:
             #     intersections.append(index)
             
         return intersections
+
+    def calc_thresholds(self):
+        '''
+            Calculate thresholds for CENTROID_DIST_THRESH
+        '''
+        minThresh = 99999
+
+        # iterate through all frames, note we are checking next frame
+        for currFrame in tqdm(range(1, 70)):
+            # check centroid distance in the next frame
+            for currTrack in self.tracks[currFrame]:
+                pass
 
 
 class Track:
@@ -201,11 +201,11 @@ class Track:
 if __name__ == "__main__":
     tracker = Tracker()
     print("----------- Load labled data set ------------")
-    tracker.load_data(labled="../../data/labled3data.npy")
+    # tracker.load_data(labled="../../data/labled3data.npy")
     print("----------- Label ID's of initial frame ------------")
-    tracker.label_initial_frame()
+    # tracker.label_initial_frame()
     print("----------- Number of clusters in each frame ------------")
-    tracker.get_clusters_per_frame()
+    # tracker.get_clusters_per_frame()
     print("----------- Tracks clusters of all frames ------------")
     tracker.id_clusters(pickled_data=True)
 
