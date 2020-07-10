@@ -1,7 +1,7 @@
 function [] = demo()
 % Plot different plots according to slider location.
 % open initial figure
-S.fh = openfig('./data/raw_data/Segmentation_and_result/1/1_3Dconnection2.fig'); 
+S.fh = openfig('./data/labled_frames/1_tracked.fig'); 
 
 S.sl = uicontrol('style','slide',...
                  'unit','pix',...
@@ -16,13 +16,13 @@ function [] = sl_call(varargin)
 % Callback for the slider.
 [h,S] = varargin{[1,3]};  % calling handle and data structure.
 cla
-data_tracked = './data/raw_data/Segmentation_and_result/%d/%d_tracked.fig';
+data_tracked = './data/labled_frames/%d_tracked.fig';
 
 fNum = round(get(h,'value'));
 fprintf('ON FRAME: %d\n', fNum);
 if fNum > 0 && fNum < 71
     %open new figure
-    g = openfig(sprintf(data_tracked, fNum, fNum),'invisible', 'reuse');
+    g = openfig(sprintf(data_tracked, fNum),'invisible', 'reuse');
     %copy the new figure objects to old figure
     copyobj(g.Children, S.fh);
 %     display(g.Children)
