@@ -38,29 +38,40 @@ def calc_euclidean_dist(p1, p2, weights):
 
 def save_as_json(tracks, centroid_thresh, weights, inter_thresh):
     '''
-        Save tracks in a json format
+        Save tracking results in a json format
     '''
     json_data = {}
     json_pretty = {}
+    json_frame_format = {}
+
     json_data[0] = {
         'centroid_thresh': centroid_thresh, 'weights': weights, 'inter_thresh': inter_thresh}
     json_pretty[0] = {
         'centroid_thresh': centroid_thresh, 'weights': weights, 'inter_thresh': inter_thresh}
+    json_frame_format[0] = {
+        'centroid_thresh': centroid_thresh, 'weights': weights, 'inter_thresh': inter_thresh}
+
     for currFrame in range(1, 71):
+        if currFrame not in json_frame_format.keys():
+            json_frame_format[currFrame] = []
+
         for track in tracks[currFrame]:
             if track.id not in json_data.keys():
                 json_data[track.id] = []
                 json_pretty[track.id] = []
-            json_data[track.id].append({'Frame': currFrame, 'locs:': track.locs.tolist(),
+            json_data[track.id].append({'Frame': currFrame, 'locs': track.locs.tolist(),
                                         'centroid': track.centroid, 'state': track.state, 'origin': track.origin})
-            json_pretty[track.id].append({'Frame': currFrame, 'locs:': len(track.locs),
-                                        'centroid': track.centroid, 'state': track.state, 'origin': track.origin})
+            json_pretty[track.id].append({'Frame': currFrame, 'locs': len(track.locs),
+                                          'centroid': track.centroid, 'state': track.state, 'origin': track.origin})
+            json_frame_format[currFrame].append({'id': track.id, 'locs': track.locs.tolist(),
+                                                'centroid': track.centroid, 'state': track.state, 'origin': track.origin})
 
     with open('../../data/tracks.json', 'w') as f:
         json.dump(json_data, f, indent=4)
     with open('../../data/tracks_pretty.json', 'w') as f:
         json.dump(json_pretty, f, indent=4)
-
+    with open('../../data/tracks_frame.json', 'w') as f:
+        json.dump(json_frame_format, f, indent=4)
 
 def save_counts_json(counts):
     '''
