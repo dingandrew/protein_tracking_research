@@ -8,33 +8,34 @@ Research to track segmented 3d images of protein clusters.
 
 To set up python3 virtual env.
 
-'''shell
+```shell
 
 /cell_tracking$ python3 -m venv env
 /cell_tracking$ source env/bin/activate
 /cell_tracking$ pip install -r requirements.txt 
 
-'''
+```
 
 ### Generate Usable Data
 
 This requires the original Segmentation_Results files from Yang.
 
-'''shell
+```shell
 
 /cell_tracking$ python3 data.py
 
-'''
+```
 Running this will generate a numpy dataset from the raw *.nii files. Will save in
 /data folder. This is used by the tracker.
 
 ### Run Tracker
 
-'''shell
+```shell
 
 /cell_tracking/src/python$ python3 tracker.py
 
-'''
+```
+
 This will run tracking on the dataset and store the results in data/ as json files.
 Uncomment functions in main() if doing it for the first time.
 
@@ -54,11 +55,11 @@ This uses the json tracking result files.
 
 Copy labled .fig results to cell_tracking_research/data/labled_frames
 
-'''shell
+```shell
 
 /cell_tracking_research$ cp ./data/raw_data/Segmentation_and_result/*/*_tracked.fig ./data/labled_frames/
 
-'''
+```
 
 Run demo.m or open demo.fig in /data to see tracking results, slide the slider the change frames.
 
