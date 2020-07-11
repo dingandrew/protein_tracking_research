@@ -13,6 +13,7 @@ data_save = './data/raw_data/Segmentation_and_result/%d/%d_tracked.fig';
 %iterate through alll frames
 fields = fieldnames(track_result);
 for k=1:(numel(fields)-1)
+      fprintf('\nOn Frame: %d', k);
       %open the correct figure
       f = openfig(sprintf(data, k, k));
       delete(findall(gcf,'type','text'))

@@ -22,10 +22,10 @@ class Tracker:
         self.counts = {}  # the total number of tracks for each fram shoun equal these counts
         self.nextID = 1
         self.data = None
-        self.CENTROID_DIST_THRESH = 5
-        self.DIST_WEIGHTS = [1, 1, 1]
-        # self.DIST_WEIGHTS = [(1/258), (1/512), (1/13)]
-        self.INTERSECT_NUM_THRESH = 10
+        self.CENTROID_DIST_THRESH = 0.3
+        # self.DIST_WEIGHTS = [1, 1, 1]
+        self.DIST_WEIGHTS = [(1/258), (1/512), (1/13)]
+        self.INTERSECT_NUM_THRESH = 5
 
     def load_data(self, labled):
         # load data
@@ -202,12 +202,12 @@ class Track:
 if __name__ == "__main__":
     tracker = Tracker()
     print("----------- Load labled data set ------------")
-    tracker.load_data(labled="../../data/labled3data.npy")
+    # tracker.load_data(labled="../../data/labled3data.npy")
     print("----------- Label ID's of initial frame ------------")
-    tracker.label_initial_frame()
+    # tracker.label_initial_frame()
     print("----------- Number of clusters in each frame ------------")
     # tracker.get_clusters_per_frame()
     print("----------- Tracks clusters of all frames ------------")
-    # tracker.id_clusters(pickled_data=True)
+    tracker.id_clusters(pickled_data=True)
 
 
