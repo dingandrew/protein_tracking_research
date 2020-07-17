@@ -1,12 +1,12 @@
 import numpy as np
 from math import sqrt
 import json
-
+import matplotlib.pyplot as plt
+import torch
 '''
     Some utility functions 
 
 '''
-
 
 def calc_centroid(arr):
     '''
@@ -79,3 +79,20 @@ def save_counts_json(counts):
     '''
     with open('../../data/counts.json', 'w') as f:
         json.dump(counts, f, indent=4)
+
+
+def open_model_json(path):
+    '''
+        Open the model_config.json file
+    '''
+    with open(path, 'r') as json_file:
+        params = json.load(json_file)
+
+    return params
+
+
+def showTensor(aTensor):
+    plt.figure()
+    plt.imshow(aTensor.detach().numpy())
+    plt.colorbar()
+    plt.show()

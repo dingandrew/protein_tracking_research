@@ -1,0 +1,109 @@
+{
+    "default": {
+        "O": 4,
+        "T": 20,
+        "cnn": {
+            "conv_features": [
+                3,
+                32,
+                64,
+                128,
+                256,
+                50
+            ],
+            "conv_kernels": [
+                [
+                    5,
+                    5
+                ],
+                [
+                    3,
+                    3
+                ],
+                [
+                    1,
+                    1
+                ],
+                [
+                    3,
+                    3
+                ],
+                [
+                    1,
+                    1
+                ]
+            ],
+            "out_sizes": [
+                [
+                    64,
+                    64
+                ],
+                [
+                    32,
+                    32
+                ],
+                [
+                    16,
+                    16
+                ],
+                [
+                    8,
+                    8
+                ],
+                [
+                    8,
+                    8
+                ]
+            ],
+            "fc_features": [],
+            "drop_out": 0.2
+        },
+        "fcn": [
+            200,
+            397
+        ],
+        "dim_C2_1": 64,
+        "dim_C2_2": 50,
+        "dim_C3_1": 8,
+        "dim_C3_2": 8,
+        "dim_C3_3": 50,
+        "dim_Y_a": 784,
+        "dim_Y_s": 784,
+        "dim_h_o": 200,
+        "dim_y_e": 1,
+        "dim_y_l": 1,
+        "dim_y_p": 4,
+        "epoch_num": 500,
+        "exp": "tba",
+        "exp_config": [
+            "act"
+        ],
+        "grad_clip": 5,
+        "h": 28,
+        "init_model": "",
+        "lr": 0.0005,
+        "lr_decay_factor": 1,
+        "metric": 0,
+        "model": "default",
+        "n": 64,
+        "print_interval": 1,
+        "r": 1,
+        "reset_interval": 0.01,
+        "s": 0,
+        "save_interval": 100,
+        "subtask": "",
+        "task": "mnist",
+        "test_batch_num": 62,
+        "train": 1,
+        "train_batch_num": 1500,
+        "train_log_interval": 100,
+        "v": 0,
+        "validate_interval": 1000,
+        "w": 28,
+        "zeta_r": [
+            1,
+            0
+        ],
+        "zeta_s": 0
+    }
+}
