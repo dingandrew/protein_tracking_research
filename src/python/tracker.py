@@ -202,12 +202,12 @@ class Track:
 if __name__ == "__main__":
     tracker = Tracker()
     print("----------- Load labled data set ------------")
-    # tracker.load_data(labled="../../data/labled3data.npy")
+    tracker.load_data(labled="../../data/labled3data.npy")
     print("----------- Label ID's of initial frame ------------")
     # tracker.label_initial_frame()
     print("----------- Number of clusters in each frame ------------")
     # tracker.get_clusters_per_frame()
     print("----------- Tracks clusters of all frames ------------")
-    tracker.id_clusters(pickled_data=True)
+    # tracker.id_clusters(pickled_data=True)
 
 

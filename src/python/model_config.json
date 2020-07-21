@@ -4,7 +4,7 @@
         "T": 20,
         "cnn": {
             "conv_features": [
-                3,
+                1,
                 32,
                 64,
                 128,
@@ -74,13 +74,8 @@
         "dim_y_l": 1,
         "dim_y_p": 4,
         "epoch_num": 500,
-        "exp": "tba",
-        "exp_config": [
-            "act"
-        ],
         "grad_clip": 5,
         "h": 28,
-        "init_model": "",
         "lr": 0.0005,
         "lr_decay_factor": 1,
         "metric": 0,
@@ -91,8 +86,6 @@
         "reset_interval": 0.01,
         "s": 0,
         "save_interval": 100,
-        "subtask": "",
-        "task": "mnist",
         "test_batch_num": 62,
         "train": 1,
         "train_batch_num": 1500,

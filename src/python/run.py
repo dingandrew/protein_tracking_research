@@ -8,13 +8,14 @@ import torch
 from util import open_model_json, showTensor
 from feature_extractor import FeatureExtractor
 
+
 # Parse arguments
 parser = argparse.ArgumentParser()
 # Task
 parser.add_argument('--type', choices=['tracker', 'deep'],
                     help="Choose a method to track with")
 
-parser.add_argument('--model', default='default',
+parser.add_argument('--model_TASK', default='default',
                     help="Choose a model with different hyper-parameters (specified in 'modules/model_config.json')")
 
 parser.add_argument('--train', type=int, default=1, choices=[0, 1],
@@ -50,36 +51,66 @@ parser.add_argument('--grad_clip', type=float, default=5,
 args = parser.parse_args()
 
 
+def load_data(labled):
+    '''
+        Load numpy data of unlabeled segemented data
 
+        Return: numpy array
+    '''
+    data = np.load(labled)
+    print('Shape of raw full sized data: ', data.shape)
+    return data
 
+def split_data(full_data):
+    '''
+        Split the raw data into a 90% training and 10% test set
 
+        Return: train_data, test_data 
+    '''
+    train_data = full_data[0:60, ...]
+    test_data = full_data[60:, ...]
+    # print('train', train_data.shape, 'test', test_data.shape)
+    return train_data, test_data 
 
 if __name__ == "__main__":
-    #load model params
+    # load model params
     model_config = open_model_json('./model_config.json')
     for k, v in model_config.items():
         vars(args)[k] = v
-    
+
     print(args)
-    
-    #init fe
-    fe = FeatureExtractor(args)
 
-    print(fe)
+    # #init fe
+    # fe = FeatureExtractor(args.default)
+
+    # print(fe)
+
+    # data_dir = '/home/andrew/unsupervised_samples/tracking-by-animation/data/mnist/pt'
+    # split = 'train'
+    # filename = split + '_' + str(1) + '.pt'
+    # X_seq = torch.load(path.join(data_dir, 'input', filename))
+    # X_seq = X_seq[:1, :, :, :, :]
+
+    # X_seq = X_seq.float().div_(255)
+    # showTensor(X_seq[0, 0, 0, ...])
+    # showTensor(X_seq[0, 1, 0, ...])
+    # print('start')
+    # a = fe(X_seq)
+    # print('final', a.shape)
+
+
+    # showTensor(a[0,:, :, 0])
+    full_data = torch.from_numpy(
+        load_data(labled="../../data/raw3data.npy"))
+
+    full_data = full_data.permute(3, 2, 0, 1)
+    # torch.set_printoptions(profile="full")
+
+    print(full_data.shape, type(full_data))
+
+    train_data, test_data = split_data(full_data)
 
 
 
-    data_dir = '/home/andrew/unsupervised_samples/tracking-by-animation/data/sprite/pt'
-    split = 'train'
-    filename = split + '_' + str(1) + '.pt'
-    X_seq = torch.load(path.join(data_dir, 'input', filename))
-    X_seq = X_seq[:5, :, :, :, :]
 
 
-    X_seq = X_seq.float().div_(255)
-    print('start')
-    a = fe(X_seq)
-
-    # Show the tensor.
-
-    # showTensor(a[0,0,...])
