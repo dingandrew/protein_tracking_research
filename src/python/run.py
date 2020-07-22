@@ -1,12 +1,10 @@
-import time
-import os
-import os.path as path
 import argparse
 import numpy as np
-import math
 import torch
 from util import open_model_json, showTensor
 from feature_extractor import FeatureExtractor
+from network import Network
+from track import Track
 
 
 # Parse arguments
@@ -61,6 +59,7 @@ def load_data(labled):
     print('Shape of raw full sized data: ', data.shape)
     return data
 
+
 def split_data(full_data):
     '''
         Split the raw data into a 90% training and 10% test set
@@ -69,8 +68,36 @@ def split_data(full_data):
     '''
     train_data = full_data[0:60, ...]
     test_data = full_data[60:, ...]
+
     # print('train', train_data.shape, 'test', test_data.shape)
-    return train_data, test_data 
+    return train_data, test_data
+
+
+
+def forward(X_seq, **kwargs):
+    '''
+        Forward function return loss
+    '''
+    start_time = time.time()
+    loss = net(X_seq, **kwargs)
+    elapsed_time = time.time() - start_time
+    return loss, elapsed_time
+
+
+def backward(loss):
+    '''
+        Backward function
+    '''
+    start_time = time.time()
+    optimizer.zero_grad()
+    loss.backward()
+    if args.grad_clip > 0:
+        nn.utils.clip_grad_norm(network.parameters(), args.grad_clip)
+    optimizer.step()
+    elapsed_time = time.time() - start_time
+    return elapsed_time
+
+
 
 if __name__ == "__main__":
     # load model params
@@ -79,6 +106,15 @@ if __name__ == "__main__":
         vars(args)[k] = v
 
     print(args)
+
+    network = Network(args.default)
+
+    print(network.parameters())
+
+    optimizer = torch.optim.Adam(
+        network.parameters(), lr=args.lr, betas=(0.9, 0.99), weight_decay=1e-6)
+    
+    benchmark = {'train_loss': [], 'val_loss': [], 'i_start': 0}
 
     # #init fe
     # fe = FeatureExtractor(args.default)
@@ -98,7 +134,6 @@ if __name__ == "__main__":
     # a = fe(X_seq)
     # print('final', a.shape)
 
-
     # showTensor(a[0,:, :, 0])
     full_data = torch.from_numpy(
         load_data(labled="../../data/raw3data.npy"))
@@ -109,8 +144,3 @@ if __name__ == "__main__":
     print(full_data.shape, type(full_data))
 
     train_data, test_data = split_data(full_data)
-
-
-
-
-
