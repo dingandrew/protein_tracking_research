@@ -37,19 +37,17 @@ class Network(nn.Module):
         '''
         super(Network, self).__init__()
         self.args = args.copy()
-        self.labels = train_labels
+        # self.labels = train_labels
 
-        if self.args['train'] == 0:
-            self.predictions = None
+        self.mask_feature = FeatureExtractor(self.args)
 
-        self.feature_extractor = FeatureExtractor(self.args)
+        self.frame_features = FeatureExtractor(self.args)
 
         #bi directional to get forwards and backwards predicions
-        self.rnn = nn.RNN(input_size=INPUT_SIZE, hidden_size=HIDDEN_SIZE,
-                          batch_first=True, num_layers=1, bidirectional=True)
+        # self.rnn = nn.RNN(input_size=64, hidden_size=3,
+        #                   batch_first=True, num_layers=3, bidirectional=True)
 
-
-        out, h_n = rnn(inputs)
+        
         self.loss_calculator = Loss_Calculator(self.args)
 
     def forward(self, input_seq, target, init_label):
@@ -59,21 +57,26 @@ class Network(nn.Module):
             3. predictions -> loss_calculator => loss
             4. return loss
 
-            Input: input_seq has shape [batch, time_step, z, x, y]
+            Input: input_seq has shape [batch, time_step, depth, z, x, y]
                    target, the object we are trying to track through time
                            it is an binary mask where
                    init_label, labels for frame where target exists in series other 
                                time_steps have initialized 0 labels, update with forward tracking 
                                as we go, [batch, time_steps, 1]
         '''
+        label = init_label
 
-        # input size : (batch_size , seq_len, input_size)
-        inputs = data.view(BATCH_SIZE, SEQ_LENGTH, INPUT_SIZE)
+        #run cnn's on input
+        frameFeatures = self.frame_features(input_seq)
+        maskFeatures = self.mask_feature(target)
+
+
+      
 
         # out shape = (batch, seq_len, num_directions * hidden_size)
         # h_n shape  = (num_layers * num_directions, batch, hidden_size)
 
-
+        # out, h_n = self.rnn(inputs)
 
 
 

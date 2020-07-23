@@ -1,5 +1,5 @@
 class Track:
-    def __init__(self, locs, id, centroid, state, origin, mask):
+    def __init__(self, locs, id, centroid, state, origin):
         self.locs = locs
         self.id = id
         self.centroid = centroid

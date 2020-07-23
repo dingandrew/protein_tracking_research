@@ -39,7 +39,7 @@ class FeatureExtractor(nn.Module):
         for layer in range(0, self.layer_num - 1):
             setattr(self,
                     'cnn3D_' + str(layer),
-                    nn.Conv2d(in_channels=self.params['conv_features'][layer],
+                    nn.Conv3d(in_channels=self.params['conv_features'][layer],
                               out_channels=self.params['conv_features'][layer+1],
                               kernel_size=self.params['conv_kernels'][layer],
                               stride=1,
@@ -48,17 +48,17 @@ class FeatureExtractor(nn.Module):
                     )
             setattr(self,
                     'batchNorm3D_' + str(layer),
-                    nn.BatchNorm2d(
+                    nn.BatchNorm3d(
                         num_features=self.params['conv_features'][layer+1])
                     )
             setattr(self,
                     'maxPool3D_' + str(layer),
-                    nn.AdaptiveMaxPool2d(
+                    nn.AdaptiveMaxPool3d(
                         tuple(self.params['out_sizes'][layer]))
                     )
             setattr(self,
                     'dropOut3D_' + str(layer),
-                    nn.Dropout2d(self.params['drop_out'])
+                    nn.Dropout3d(self.params['drop_out'])
                     )
         self.activation = nn.ReLU()
 

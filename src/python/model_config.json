@@ -84,7 +84,6 @@
         "print_interval": 1,
         "r": 1,
         "reset_interval": 0.01,
-        "s": 0,
         "save_interval": 100,
         "test_batch_num": 62,
         "train": 1,

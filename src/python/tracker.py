@@ -33,6 +33,15 @@ class Tracker:
         self.data = np.load(labled)
         print(self.data.shape)
 
+    def test(self):
+        print('hell')
+        with open('../../data/tracks.pickle', 'rb') as f:
+            # The protocol version used is detected automatically, so we do not
+            # have to specify it.
+            tracks = pickle.load(f)
+
+        print(tracks)
+
     def label_initial_frame(self):
         '''
             Need to create a ground truth for tracking we will use segmentation labels
@@ -53,19 +62,13 @@ class Tracker:
                     continue
 
                 locations = np.argwhere(timeSlice == clusterID)
-                # create a mask that contains just that cluster
-                mask = np.zeros((13, 280, 512))
-
-                # print(mask)
-                for index in locations:
-                    mask[index[2], index[0], index[1]] = 1
 
                 if t == 1:
                     newTrack = Track(locations, clusterID, calc_centroid(
-                        locations), 'active', 'init', mask)
+                        locations), 'active', 'init')
                 else:
                     newTrack = Track(
-                        locations, None, calc_centroid(locations), None, None, mask)
+                        locations, None, calc_centroid(locations), None, None)
 
                 self.tracks[t].append(copy.deepcopy(newTrack))
 
@@ -202,10 +205,11 @@ class Tracker:
 
 if __name__ == "__main__":
     tracker = Tracker()
+    tracker.test()
     print("----------- Load labled data set ------------")
-    tracker.load_data(labled="../../data/labled3data.npy")
+    # tracker.load_data(labled="../../data/labled3data.npy")
     print("----------- Label ID's of initial frame ------------")
-    tracker.label_initial_frame()
+    # tracker.label_initial_frame()
     print("----------- Number of clusters in each frame ------------")
     # tracker.get_clusters_per_frame()
     print("----------- Tracks clusters of all frames ------------")
