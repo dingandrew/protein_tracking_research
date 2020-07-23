@@ -5,7 +5,7 @@ class Track:
         self.centroid = centroid
         self.state = state
         self.origin = origin
-        self.mask = mask
+        self.trainable = None
 
     def __repr__(self):
         return "<Track \nlocs:%s \nid:%s \ncentroid:%s \nstate:%s \norigin:%s>" % (len(self.locs), self.id, self.centroid, self.state, self.origin)

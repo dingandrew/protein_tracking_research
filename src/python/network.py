@@ -29,26 +29,25 @@ class Network(nn.Module):
 
         7. Calculate loss and return 
     '''
-    def __init__(self, args):
+    def __init__(self, params):
         '''
             See model_config.json for parameter values
 
             Input: args, for the task to set up the network for
         '''
         super(Network, self).__init__()
-        self.args = args.copy()
+        self.params = params.copy()
         # self.labels = train_labels
 
-        self.mask_feature = FeatureExtractor(self.args)
+        self.mask_feature = FeatureExtractor(self.params)
 
-        self.frame_features = FeatureExtractor(self.args)
+        self.frame_features = FeatureExtractor(self.params)
 
         #bi directional to get forwards and backwards predicions
         # self.rnn = nn.RNN(input_size=64, hidden_size=3,
         #                   batch_first=True, num_layers=3, bidirectional=True)
 
-        
-        self.loss_calculator = Loss_Calculator(self.args)
+        self.loss_calculator = Loss_Calculator(self.params)
 
     def forward(self, input_seq, target, init_label):
         '''

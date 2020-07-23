@@ -12,7 +12,7 @@ class FeatureExtractor(nn.Module):
         of data.
     '''
 
-    def __init__(self, args):
+    def __init__(self, params):
         '''
             Initialize the feature extractor
 
@@ -28,37 +28,37 @@ class FeatureExtractor(nn.Module):
 
         '''
         super(FeatureExtractor, self).__init__()
-        self.args = args
-        self.params = self.args['cnn'].copy()
+        self.params = params.copy()
+        self.cnnParams = self.params['cnn']
 
         # print('cnn params: ', self.params, ' ', type(self.params))
-        self.layer_num = len(self.params['conv_features'])
+        self.layer_num = len(self.cnnParams['conv_features'])
         # print(self.params['conv_kernels'][1])
 
         # create a feature extractor deep model
         for layer in range(0, self.layer_num - 1):
             setattr(self,
                     'cnn3D_' + str(layer),
-                    nn.Conv3d(in_channels=self.params['conv_features'][layer],
-                              out_channels=self.params['conv_features'][layer+1],
-                              kernel_size=self.params['conv_kernels'][layer],
+                    nn.Conv3d(in_channels=self.cnnParams['conv_features'][layer],
+                              out_channels=self.cnnParams['conv_features'][layer+1],
+                              kernel_size=self.cnnParams['conv_kernels'][layer],
                               stride=1,
-                              padding=(self.params['conv_kernels'][layer][0]//2,
-                                       self.params['conv_kernels'][layer][1]//2))
+                              padding=(self.cnnParams['conv_kernels'][layer][0]//2,
+                                       self.cnnParams['conv_kernels'][layer][1]//2))
                     )
             setattr(self,
                     'batchNorm3D_' + str(layer),
                     nn.BatchNorm3d(
-                        num_features=self.params['conv_features'][layer+1])
+                        num_features=self.cnnParams['conv_features'][layer+1])
                     )
             setattr(self,
                     'maxPool3D_' + str(layer),
                     nn.AdaptiveMaxPool3d(
-                        tuple(self.params['out_sizes'][layer]))
+                        tuple(self.cnnParams['out_sizes'][layer]))
                     )
             setattr(self,
                     'dropOut3D_' + str(layer),
-                    nn.Dropout3d(self.params['drop_out'])
+                    nn.Dropout3d(self.cnnParams['drop_out'])
                     )
         self.activation = nn.ReLU()
 
@@ -69,10 +69,12 @@ class FeatureExtractor(nn.Module):
         '''
         # TODO: need to modify the shapes for 3d
         # print(input_seq.shape)
+        time_steps = input_seq.shape[1]
+        print(time_steps)
         input_seq = input_seq.view(-1,
                                    input_seq.size(2),
                                    input_seq.size(3),
-                                   input_seq.size(4))  # (batch * time_frame), D+2, H, W, Z
+                                   input_seq.size(4))  # (batch * time_frame), D, Z , H, W
 
         # print('view', input_seq.shape)
 
@@ -95,8 +97,8 @@ class FeatureExtractor(nn.Module):
         # print('permutes', H.shape)
         # batch, time_frame, (x_filter_size * y_filter_size), final output filters
         H = H.reshape(-1,
-                      self.args['T'],
-                      self.args['dim_C2_1'],
-                      self.args['dim_C2_2'])
+                      self.params['T'],
+                      self.params['dim_C2_1'],
+                      self.params['dim_C2_2'])
         # print('reshaped/', C2_seq.shape)
         return H

@@ -8,14 +8,13 @@ from track import Track
 import time
 from tqdm import tqdm
 
-np.set_printoptions(threshold=sys.maxsize)
+# np.set_printoptions(threshold=sys.maxsize)
 
 
 class Tracker:
     '''
         Naive implementation of tracking
     '''
-
     def __init__(self):
         frames = [f for f in range(1, 71)]
         self.tracks = {key: []
@@ -32,15 +31,6 @@ class Tracker:
         # load data
         self.data = np.load(labled)
         print(self.data.shape)
-
-    def test(self):
-        print('hell')
-        with open('../../data/tracks.pickle', 'rb') as f:
-            # The protocol version used is detected automatically, so we do not
-            # have to specify it.
-            tracks = pickle.load(f)
-
-        print(tracks)
 
     def label_initial_frame(self):
         '''
@@ -83,7 +73,6 @@ class Tracker:
 
             Return: self.counts is populated and is also saved
         '''
-
         for frame in tqdm(range(70)):
             timeSlice = self.data[..., frame]
             uniqueClusters = np.unique(timeSlice)
@@ -205,12 +194,11 @@ class Tracker:
 
 if __name__ == "__main__":
     tracker = Tracker()
-    tracker.test()
     print("----------- Load labled data set ------------")
-    # tracker.load_data(labled="../../data/labled3data.npy")
+    tracker.load_data(labled="../../data/labled3data.npy")
     print("----------- Label ID's of initial frame ------------")
-    # tracker.label_initial_frame()
+    tracker.label_initial_frame()
     print("----------- Number of clusters in each frame ------------")
-    # tracker.get_clusters_per_frame()
+    tracker.get_clusters_per_frame()
     print("----------- Tracks clusters of all frames ------------")
-    # tracker.id_clusters(pickled_data=True)
+    tracker.id_clusters(pickled_data=True)
