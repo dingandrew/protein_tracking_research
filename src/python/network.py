@@ -44,12 +44,12 @@ class Network(nn.Module):
         self.frame_features = FeatureExtractor(self.params)
 
         #bi directional to get forwards and backwards predicions
-        # self.rnn = nn.RNN(input_size=64, hidden_size=3,
-        #                   batch_first=True, num_layers=3, bidirectional=True)
+        self.rnn = nn.RNN(input_size=64, hidden_size=3,
+                          batch_first=True, num_layers=3, bidirectional=True)
 
         self.loss_calculator = Loss_Calculator(self.params)
 
-    def forward(self, input_seq, target, init_label):
+    def forward(self, input_seq, target):
         '''
             1. input_seq -> fetaure_extractor => features
             2. features -> RNN(bidrectional=true) => forwards and backwards predictions
@@ -59,17 +59,13 @@ class Network(nn.Module):
             Input: input_seq has shape [batch, time_step, depth, z, x, y]
                    target, the object we are trying to track through time
                            it is an binary mask where
-                   init_label, labels for frame where target exists in series other 
-                               time_steps have initialized 0 labels, update with forward tracking 
-                               as we go, [batch, time_steps, 1]
-        '''
-        label = init_label
 
+        '''
         #run cnn's on input
         frameFeatures = self.frame_features(input_seq)
         maskFeatures = self.mask_feature(target)
 
-
+        
       
 
         # out shape = (batch, seq_len, num_directions * hidden_size)

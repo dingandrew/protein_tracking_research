@@ -12,8 +12,8 @@ class Loss_Calculator(nn.Module):
     '''
     def __init__(self, args):
         super(Loss_Calculator, self).__init__()
+        
 
 
-
-    def forward(self):
+    def forward(self, prediction, actual):
         pass

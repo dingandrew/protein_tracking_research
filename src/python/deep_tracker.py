@@ -11,14 +11,15 @@ from track import Track
 
 
 # Parse arguments
-parser = argparse.ArgumentParser(description='Edit model hyper-parameters in model_config.json')
+parser = argparse.ArgumentParser(
+    description='Edit model hyper-parameters in model_config.json')
 # Task
 parser.add_argument('--model_task', default='default',
                     help="Choose a model with different hyper-parameters (specified in 'modules/model_config.json')")
-parser.add_argument('--train', required=True, choices=['train', 'test'],
-                    help="Choose to train or test the model")
+parser.add_argument('--train', required=True, choices=['train', 'predict'],
+                    help="Choose to train or predict with the model")
 parser.add_argument('--init_model', default='',
-                    help="Recover training from a checkpoint, e.g., 'sp_latest.pt', 'sp_3000.pt'")
+                    help="Recover training from a checkpoint, e.g., 'latest.pt', '3000.pt'")
 args = parser.parse_args()
 
 
@@ -26,10 +27,10 @@ class Trainer():
     '''
         Wrapper class to train the deep tracker
     '''
+
     def __init__(self, args, params):
         self.args = args
         self.params = params
-        self.train = args.train
         # init network and optimizer
         self.network = Network(self.params)
         self.optimizer = torch.optim.Adam(self.network.parameters(),
@@ -37,16 +38,19 @@ class Trainer():
                                           betas=(0.9, 0.99),
                                           weight_decay=1e-6)
         self.trainLossSum = 0
+        self.currSearchFrame = 1
+        # track the current example
+        self.trainExample = 0
+        self.testExample = 0
         # need to call load_data
         self.full_data = None
         self.tracks = None
+        self.counts = None
         # for recording performance of model
-        self.benchmark = {'train_loss': [], 'val_loss': [], 'iteration': 0}
+        self.benchmark = {'train_loss': [], 'val_loss': []}
         self.save_path = '../../models/'
 
-
-
-    def load_data(self, track, labled):
+    def load_data(self, track, labled, count):
         '''
             Load numpy data of unlabeled segemented data and tracks
 
@@ -57,24 +61,32 @@ class Trainer():
             # The protocol version used is detected automatically, so we do not
             # have to specify it.
             self.tracks = pickle.load(f)
-        # print(self.tracks)
+
+        # load the cluster counts per frame
+        self.counts = open_model_json(count)
 
         # load the frames
         data = torch.from_numpy(np.load(labled))
         data = data.permute(3, 2, 0, 1)
         data = data[None, :, None, :, :, :]
         #showTensor(full_data[0, 0, 0, 5, ...])
-        print('Shape of raw full sized data: ',
-              data.shape, type(data))
-
+        # print('Shape of raw full sized data: ', data.shape, type(data))
         self.full_data = data
 
-        # Split the raw data into a 90% training and 10% test set
-        # train_data = full_data[0:60, ...]
-        # test_data = full_data[60:, ...]
+    def calc_batches(self, time_step):
+        '''
+            The setting is constant so we dynamically calculate training examples 
+            thus each time_step will have a 85% of its clusters used as training examples
+            and a dynamic per time step batch size
 
-        # print('train', train_data.shape, 'test', test_data.shape)
-        # return train_data, test_data
+            Input: time_step, the current frame number 
+
+            Output: train_num, test_num
+        '''
+        train_num = int(self.counts[str(time_step)]
+                        * self.params['train_test_ratio'])
+        test_num = self.counts[str(time_step)] - train_num
+        return train_num, test_num
 
     def getMask(self, locs):
         '''
@@ -86,153 +98,166 @@ class Trainer():
 
         return mask
 
-    def forward(self, input_seq):
+    def forward(self, input_seq, mask):
         '''
             Forward function return loss
+
+            Input: input_seq, the entire frame sequence
+                   mask, the individual cluster
+
+            Output: loss
+                    elapsed_time 
+                    output, the predictions for each frame
         '''
         start_time = time.time()
-        loss = self.network(input_seq)
+        loss, output = self.network(input_seq, mask)
         elapsed_time = time.time() - start_time
-        return loss, elapsed_time
+        return loss, elapsed_time, output
 
     def backward(self, loss):
         '''
             Backward function
+
+            Input: loss
+
+            Output: elapsed_time
         '''
         start_time = time.time()
         self.optimizer.zero_grad()
         loss.backward()
         if self.params['grad_clip'] > 0:
-            nn.utils.clip_grad_norm(self.network.parameters(), 
+            nn.utils.clip_grad_norm(self.network.parameters(),
                                     self.params['grad_clip'])
         self.optimizer.step()
         elapsed_time = time.time() - start_time
         return elapsed_time
 
-    def run_batch(self, full_data, train):
+    def run_batch(self, full_data, mask, train):
         '''
             The forward and backward passes for an iteration
+
+            Input: full_data, the entire frame sequence
+                   mask, the individual cluster
+                   train, train or prediction
+
+            Output: loss, output
         '''
-        if train:
-            loss, forward_time = self.forward(full_data)
+        if train == 'train':
+            loss, forward_time, output = self.forward(full_data, mask)
             backward_time = self.backward(loss)
         else:
             with torch.no_grad():
-                loss, forward_time = self.forward(full_data)
+                loss, forward_time, output = self.forward(full_data, mask)
             backward_time = 0
 
-        print('Runtime: %.3fs' % (forward_time + backward_time))
-        return loss.item()
+        tqdm.write('Runtime: {}s'.format(forward_time + backward_time))
+        return loss.item(), output
 
-    def run_train_epoch(self, batch_id_start):
+    def run_train_epoch(self, epoch_id):
+        '''
+            Train one batch
+        '''
+        # configure network for training
         self.network.train()
 
-        for batch_id in range(batch_id_start, o.train_batch_num):
+        # dynamically calculate the number of training examples
+        trainNum, testNum = self.calc_batches(self.currSearchFrame)
 
-            o.batch_id = batch_id
-            loss = run_batch(batch_id, 'train')
+        # get the clusters in this frame
+        frame_tracks = self.tracks[self.currSearchFrame]
+
+        for batchId in range(self.trainExample, self.trainExample + self.params['batch_size']):
+
+            currTrack = frame_tracks[batchId]
+            mask = self.getMask(currTrack.locs)
+
+            loss, output = self.run_batch(self.full_data, mask, 'train')
+
             trainLossSum = trainLossSum + loss
-            i = i + 1
 
+            tqdm.write('Epoch: {}, iter: {}/{}, loss: {}'.format(epoch_id,
+                                                                 batchId,
+                                                                 self.trainExample +
+                                                                 self.params['batch_size'],
+                                                                 loss))
 
-
-
-            print('Epoch: %.2f/%d, iter: %d/%d, batch: %d/%d, loss: %.3f' % 
-            (i/o.train_batch_num, o.epoch_num, i, iter_num, batch_id+1, o.train_batch_num, loss))
-
-
-
-
-
-
-
-            if o.train_log_interval > 0 and i % o.train_log_interval == 0:
+            # record metrics every 100 epochs
+            if param['train_log_interval'] > 0 and epoch_id % param['train_log_interval'] == 0:
                 benchmark['train_loss'].append(
-                    (i, trainLossSum/o.train_log_interval))
+                    (epoch_id, trainLossSum/param['train_log_interval']))
                 trainLossSum = 0
 
+            if param['validate_interval'] > 0 and epoch_id % param['validate_interval'] == 0:
+                # run the newtwork on the test clusters
+                val_loss, output = self.run_test_epoch(frame_tracks, testNum)
+                self.network.train()
+                benchmark['val_loss'].append((epoch_id, val_loss))
+                savepoint = {'param': param, 'benchmark': benchmark}
+                utils.save_json(savepoint, self.save_path +
+                                str(epoch_id) + '_bench.json')
+                savepoint['net_states'] = self.network.state_dict()
+                torch.save(savepoint, self.save_path + str(i) + '.pt')
 
+            if param['save_interval'] > 0 and epoch_id % param['save_interval'] == 0:
+                savepoint = {'param': param, 'benchmark': benchmark}
+                savepoint['net_states'] = self.network.state_dict()
+                torch.save(savepoint, self.save_path + 'latest.pt')
 
-
-
-
-
-
-            if o.validate_interval > 0 and (i % o.validate_interval == 0 or i == iter_num):
-                
-                val_loss = run_test_epoch() if o.test_batch_num > 0 else 0
-                
-                net.train()
-                benchmark['val_loss'].append((i, val_loss))
-                benchmark['iteration'] = i
-                savepoint = {'o': vars(o), 'benchmark': benchmark}
-                utils.save_json(
-                    savepoint, result_file_header + str(i) + '.json')
-                savepoint['net_states'] = net.state_dict()
-                # savepoint['optim_states'] = optimizer.state_dict()
-                torch.save(savepoint, result_file_header + str(i) + '.pt')
-
-
-
-
-
-
-
-
-            if o.save_interval > 0 and (i % o.save_interval == 0 or i == iter_num):
-                benchmark['iteration'] = i
-                savepoint = {'o': vars(o), 'benchmark': benchmark}
-                utils.save_json(savepoint, result_file_header + 'latest.json')
-                savepoint['net_states'] = net.state_dict()
-                # savepoint['optim_states'] = optimizer.state_dict()
-                torch.save(savepoint, result_file_header + 'latest.pt')
-
-            print('-' * 80)
-
-
-    def run_test_epoch(self):
+    def run_test_epoch(self, frame_tracks, test_num):
         '''
             The test function
         '''
-        torch.save(net.states, result_file_header + 'tmp.pt')
-        net.reset_states()
-        net.eval()
+        self.network.eval()
         val_loss_sum = 0
-        for batch_id in range(0, o.test_batch_num):
-            o.batch_id = batch_id
-            loss = run_batch(batch_id, 'test')
+        num_frame_tracks = len(frame_tracks)
+
+        for batchId in range(num_frame_tracks, num_frame_tracks - test_num, -1):
+            currTrack = frame_tracks[batchId]
+            mask = self.getMask(currTrack['locs'])
+            loss, output = self.run_batch(self.full_data, mask, 'train')
             val_loss_sum = val_loss_sum + loss
-            print('Validation %d / %d, loss = %.3f' %
-                (batch_id+1, o.test_batch_num, loss))
-        print('Final validation loss: %.3f' % (val_loss))
-        net.states = torch.load(result_file_header + 'tmp.pt')
-        return val_loss
+            tqdm.write('Validation {} / {}, loss = {}'.format
+                       (batch_id - num_frame_tracks, test_num, loss))
+
+        return val_loss_sum, output
 
 
 if __name__ == "__main__":
     print('-------------- Train the Deep Tracker ------------------')
     # load model params
     model_config = open_model_json('./model_config.json')
-    print(args)
 
     # init the training wrapper
     trainer = Trainer(args, model_config[args.model_task])
-
     trainer.load_data(track='../../data/tracks.pickle',
-                      labled="../../data/raw3data.npy")
+                      labled='../../data/raw3data.npy',
+                      count='../../data/counts.json')
 
-    # print(trainer.tracks[1][0].locs)
-    # mask = trainer.getMask(trainer.tracks[1][0].locs)
-    # print(mask.shape)
-    # showTensor(mask[1, ...])
+    trainer.run_train_epoch(0)
 
     # Run the trainer
-    if args.train == 1:
-        epoch_id_start = 0 
-        batch_id_start = 0 
-        # for epoch_id in tqdm(range(epoch_id_start, model_config['epoch_num'])):
-        #     trainer.run_train_epoch(batch_id_start)
-        #     batch_id_start = 0
-    else:
-        # trainer.run_test_epoch()
-        pass
+    if args.train == 'train':
+        for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
+            trainer.run_train_epoch(epoch_id)
+
+            # reset the current search frame if all clusters have been searched
+            if trainer.curr_search_frame == 70:
+                trainer.curr_search_frame = 0
+
+    elif args.train == 'predict':
+        if args.init_model == '':
+            print('ERROR: Must specify initial model to predict with it')
+            exit()
+
+        savepoint = torch.load(trainer.save_path + 'latest.pt')
+        trainer.network.load_state_dict(savepoint['net_states'])
+
+        benchmark = savepoint['benchmark']
+        print('Model is initialized from ' + f)
+
+        param_num = sum([param.data.numel() for param in net.parameters()])
+        print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
+
+        # TODO: run all clusters through this
+
+        trainer.run_test_epoch(frame_tracks, cluster_count)
