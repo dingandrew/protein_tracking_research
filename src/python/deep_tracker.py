@@ -110,7 +110,8 @@ class Trainer():
                     output, the predictions for each frame
         '''
         start_time = time.time()
-        loss, output = self.network(input_seq, mask, trainer.currSearchFrame)
+        loss, output = self.network(
+            input_seq.float(), mask.float(), trainer.currSearchFrame)
         elapsed_time = time.time() - start_time
         return loss, elapsed_time, output
 
