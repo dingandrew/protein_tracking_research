@@ -28,6 +28,8 @@ class Network(nn.Module):
         6. (Inference mode only) store the predictions results
 
         7. Calculate loss and return 
+
+        NOTE: all batch sizes are 1
     '''
     def __init__(self, params):
         '''
@@ -44,12 +46,12 @@ class Network(nn.Module):
         self.frame_features = FeatureExtractor(self.params)
 
         #bi directional to get forwards and backwards predicions
-        self.rnn = nn.RNN(input_size=64, hidden_size=3,
+        self.rnn = nn.RNN(input_size=50, hidden_size=4,
                           batch_first=True, num_layers=3, bidirectional=True)
 
         self.loss_calculator = Loss_Calculator(self.params)
 
-    def forward(self, input_seq, target):
+    def forward(self, input_seq, target, init_time):
         '''
             1. input_seq -> fetaure_extractor => features
             2. features -> RNN(bidrectional=true) => forwards and backwards predictions
@@ -64,16 +66,13 @@ class Network(nn.Module):
         #run cnn's on input
         frameFeatures = self.frame_features(input_seq)
         maskFeatures = self.mask_feature(target)
+        # batch, time_frame, (x_filter_size * y_filter_size), final output filters
 
-        
-      
-
+        # h_0 shape = (num_layers * 2, batch, input_size)
         # out shape = (batch, seq_len, num_directions * hidden_size)
         # h_n shape  = (num_layers * num_directions, batch, hidden_size)
 
-        # out, h_n = self.rnn(inputs)
-
-
+        out, h_n = self.rnn(frameFeatures, maskFeatures)
 
 
 

@@ -110,7 +110,7 @@ class Trainer():
                     output, the predictions for each frame
         '''
         start_time = time.time()
-        loss, output = self.network(input_seq, mask)
+        loss, output = self.network(input_seq, mask, trainer.currSearchFrame)
         elapsed_time = time.time() - start_time
         return loss, elapsed_time, output
 
@@ -165,15 +165,16 @@ class Trainer():
 
         # get the clusters in this frame
         frame_tracks = self.tracks[self.currSearchFrame]
-
+        
+        # TODO: increment examples
         for batchId in range(self.trainExample, self.trainExample + self.params['batch_size']):
-
+            
             currTrack = frame_tracks[batchId]
             mask = self.getMask(currTrack.locs)
 
             loss, output = self.run_batch(self.full_data, mask, 'train')
 
-            trainLossSum = trainLossSum + loss
+            self.trainLossSum = self.trainLossSum + loss
 
             tqdm.write('Epoch: {}, iter: {}/{}, loss: {}'.format(epoch_id,
                                                                  batchId,
@@ -182,24 +183,24 @@ class Trainer():
                                                                  loss))
 
             # record metrics every 100 epochs
-            if param['train_log_interval'] > 0 and epoch_id % param['train_log_interval'] == 0:
-                benchmark['train_loss'].append(
-                    (epoch_id, trainLossSum/param['train_log_interval']))
-                trainLossSum = 0
+            if self.params['train_log_interval'] > 0 and epoch_id % self.params['train_log_interval'] == 0:
+                self.benchmark['train_loss'].append(
+                    (epoch_id, self.trainLossSum/self.params['train_log_interval']))
+                self.trainLossSum = 0
 
-            if param['validate_interval'] > 0 and epoch_id % param['validate_interval'] == 0:
+            if self.params['validate_interval'] > 0 and epoch_id % self.params['validate_interval'] == 0:
                 # run the newtwork on the test clusters
                 val_loss, output = self.run_test_epoch(frame_tracks, testNum)
                 self.network.train()
-                benchmark['val_loss'].append((epoch_id, val_loss))
-                savepoint = {'param': param, 'benchmark': benchmark}
+                self.benchmark['val_loss'].append((epoch_id, val_loss))
+                savepoint = {'param': self.params, 'benchmark': self.benchmark}
                 utils.save_json(savepoint, self.save_path +
                                 str(epoch_id) + '_bench.json')
                 savepoint['net_states'] = self.network.state_dict()
                 torch.save(savepoint, self.save_path + str(i) + '.pt')
 
-            if param['save_interval'] > 0 and epoch_id % param['save_interval'] == 0:
-                savepoint = {'param': param, 'benchmark': benchmark}
+            if self.params['save_interval'] > 0 and epoch_id % self.params['save_interval'] == 0:
+                savepoint = {'param': self.params, 'benchmark': self.benchmark}
                 savepoint['net_states'] = self.network.state_dict()
                 torch.save(savepoint, self.save_path + 'latest.pt')
 
@@ -211,9 +212,9 @@ class Trainer():
         val_loss_sum = 0
         num_frame_tracks = len(frame_tracks)
 
-        for batchId in range(num_frame_tracks, num_frame_tracks - test_num, -1):
+        for batchId in range(num_frame_tracks - 1 , num_frame_tracks - test_num, -1):
             currTrack = frame_tracks[batchId]
-            mask = self.getMask(currTrack['locs'])
+            mask = self.getMask(currTrack.locs)
             loss, output = self.run_batch(self.full_data, mask, 'train')
             val_loss_sum = val_loss_sum + loss
             tqdm.write('Validation {} / {}, loss = {}'.format
@@ -221,6 +222,8 @@ class Trainer():
 
         return val_loss_sum, output
 
+    def run_prediction(self, frame_tracks, cluster_count):
+        pass
 
 if __name__ == "__main__":
     print('-------------- Train the Deep Tracker ------------------')
@@ -233,7 +236,6 @@ if __name__ == "__main__":
                       labled='../../data/raw3data.npy',
                       count='../../data/counts.json')
 
-    trainer.run_train_epoch(0)
 
     # Run the trainer
     if args.train == 'train':
@@ -241,8 +243,8 @@ if __name__ == "__main__":
             trainer.run_train_epoch(epoch_id)
 
             # reset the current search frame if all clusters have been searched
-            if trainer.curr_search_frame == 70:
-                trainer.curr_search_frame = 0
+            if trainer.currSearchFrame == 70:
+                trainer.currSearchFrame = 0
 
     elif args.train == 'predict':
         if args.init_model == '':
@@ -260,4 +262,4 @@ if __name__ == "__main__":
 
         # TODO: run all clusters through this
 
-        trainer.run_test_epoch(frame_tracks, cluster_count)
+        trainer.run_prediction(frame_tracks, cluster_count)

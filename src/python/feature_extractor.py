@@ -42,9 +42,7 @@ class FeatureExtractor(nn.Module):
                     nn.Conv3d(in_channels=self.cnnParams['conv_features'][layer],
                               out_channels=self.cnnParams['conv_features'][layer+1],
                               kernel_size=self.cnnParams['conv_kernels'][layer],
-                              stride=1,
-                              padding=(self.cnnParams['conv_kernels'][layer][0]//2,
-                                       self.cnnParams['conv_kernels'][layer][1]//2))
+                              stride=(1, 1, 1))
                     )
             setattr(self,
                     'batchNorm3D_' + str(layer),
@@ -68,15 +66,16 @@ class FeatureExtractor(nn.Module):
             output shape: (batch, time_frame, (x_filter_size * y_filter_size), num of final output filters)
         '''
         # TODO: need to modify the shapes for 3d
-        # print(input_seq.shape)
+        print(input_seq.shape)
         time_steps = input_seq.shape[1]
         print(time_steps)
         input_seq = input_seq.view(-1,
                                    input_seq.size(2),
                                    input_seq.size(3),
-                                   input_seq.size(4))  # (batch * time_frame), D, Z , H, W
+                                   input_seq.size(4),
+                                   input_seq.size(5))  # (batch * time_frame), D, Z , H, W
 
-        # print('view', input_seq.shape)
+        print('view', input_seq.shape)
 
         # will have shape (batch * time_frame), final output filters, x_filter_size, y_filter_size
         H = input_seq
@@ -86,19 +85,19 @@ class FeatureExtractor(nn.Module):
             H = getattr(self, 'maxPool3D_' + str(layer))(H)
             H = getattr(self, 'dropOut3D_' + str(layer))(H)
 
-        # print('conved', H.shape)
+        print('conved', H.shape)
         H = self.activation(H)
 
-        # print('activated', C3_seq.shape)
+        print('activated', C3_seq.shape)
         # showTensor(H[0, 0, ...])
         # (batch * time_frame), x_filter_size, y_filter_size, final output filters
         H = H.permute(0, 2, 3, 1)
 
-        # print('permutes', H.shape)
-        # batch, time_frame, (x_filter_size * y_filter_size), final output filters
+        print('permutes', H.shape)
+    
         H = H.reshape(-1,
                       self.params['T'],
                       self.params['dim_C2_1'],
                       self.params['dim_C2_2'])
-        # print('reshaped/', C2_seq.shape)
+        print('reshaped/', C2_seq.shape)
         return H
