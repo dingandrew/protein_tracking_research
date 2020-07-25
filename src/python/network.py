@@ -4,6 +4,8 @@ import sys
 import numpy as np
 import torch
 import torch.nn as nn
+import time
+from tqdm import tqdm
 from feature_extractor import FeatureExtractor
 from loss_calculator import Loss_Calculator
 
@@ -65,7 +67,12 @@ class Network(nn.Module):
         '''
         #run cnn's on input
         frameFeatures = self.frame_features(input_seq)
+        tqdm.write('frame feautres shape: {}'.format(frameFeatures.shape))
+
+        target = target[None, None, 1 ,: ,: ,:]
+        print(target.shape)
         maskFeatures = self.mask_feature(target)
+        tqdm.write('mask features shape: {}'.format(maskFeatures.shape))
         # batch, time_frame, (x_filter_size * y_filter_size), final output filters
 
         # h_0 shape = (num_layers * 2, batch, input_size)
@@ -73,7 +80,8 @@ class Network(nn.Module):
         # h_n shape  = (num_layers * num_directions, batch, hidden_size)
 
         out, h_n = self.rnn(frameFeatures, maskFeatures)
-
+        print(out.shape, h_n.shape)
+        print('out: ', out)
 
 
 

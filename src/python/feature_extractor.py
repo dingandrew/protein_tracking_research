@@ -1,14 +1,15 @@
 import torch.nn as nn
 import torch
 import numpy as np
-import psutil
+import time
+from tqdm import tqdm
 from util import showTensor
 
 
 class FeatureExtractor(nn.Module):
     '''
         Extract features from a frame. Imagine we have a cluster of variable
-        size and shape in a frame. We only need represent it as a single point 
+        size and shape in a frame. We only need represent it as a single point
         within a smaller feature map, simplyfying the model. Simplify representation
         of data.
     '''
@@ -21,9 +22,9 @@ class FeatureExtractor(nn.Module):
 
             Params:
                 params, model parameters
-                layer_num, number of layers in the feature extractor 
-                conv_features, the number of filters  
-                conv_kernels, size of conv kernel 
+                layer_num, number of layers in the feature extractor
+                conv_features, the number of filters
+                conv_kernels, size of conv kernel
                 stride, note set all with equal stride
                 padding
 
@@ -67,16 +68,16 @@ class FeatureExtractor(nn.Module):
             output shape: (batch, time_frame, (x_filter_size * y_filter_size), num of final output filters)
         '''
         # TODO: need to modify the shapes for 3d
-        print(input_seq.shape)
-        time_steps = input_seq.shape[1]
-        print(time_steps)
+        tqdm.write('Input seq: {}'.format(input_seq.shape))
+        # time_steps = input_seq.shape[1]
+        # print(time_steps)
         input_seq = input_seq.view(-1,
                                    input_seq.size(2),
                                    input_seq.size(3),
                                    input_seq.size(4),
                                    input_seq.size(5))  # (batch * time_frame), D, Z , H, W
 
-        print('view', input_seq.shape)
+        tqdm.write('view: {}'.format(input_seq.shape))
 
         # will have shape (batch * time_frame), final output filters, x_filter_size, y_filter_size
         H = input_seq
@@ -86,19 +87,17 @@ class FeatureExtractor(nn.Module):
             H = getattr(self, 'maxPool3D_' + str(layer))(H)
             H = getattr(self, 'dropOut3D_' + str(layer))(H)
 
-        print('conved', H.shape)
+        tqdm.write('conved: {}'.format(H.shape))
         H = self.activation(H)
 
-        print('activated', C3_seq.shape)
+        tqdm.write('activated: {}'.format(H.shape))
         # showTensor(H[0, 0, ...])
-        # (batch * time_frame), x_filter_size, y_filter_size, final output filters
-        H = H.permute(0, 2, 3, 1)
+        # (batch * time_frame), z_filter, x_filter_size, y_filter_size, final output filters
+        H = H.permute(0, 2, 3, 4, 1)
 
-        print('permutes', H.shape)
-    
-        H = H.reshape(-1,
-                      self.params['T'],
-                      self.params['dim_C2_1'],
-                      self.params['dim_C2_2'])
-        print('reshaped/', C2_seq.shape)
+        tqdm.write('permutes: {}'.format(H.shape))
+
+        H = H.reshape(-1, 70, 512, 8)
+
+        tqdm.write('reshaped: {}'.format(H.shape))
         return H

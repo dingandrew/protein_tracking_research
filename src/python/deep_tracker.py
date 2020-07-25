@@ -40,7 +40,7 @@ class Trainer():
         self.trainLossSum = 0
         self.currSearchFrame = 1
         # track the current example
-        self.trainExample = 0
+        self.trainExample = 1
         self.testExample = 0
         # need to call load_data
         self.full_data = None
@@ -169,7 +169,6 @@ class Trainer():
         
         # TODO: increment examples
         for batchId in range(self.trainExample, self.trainExample + self.params['batch_size']):
-            
             currTrack = frame_tracks[batchId]
             mask = self.getMask(currTrack.locs)
 
@@ -219,7 +218,7 @@ class Trainer():
             loss, output = self.run_batch(self.full_data, mask, 'train')
             val_loss_sum = val_loss_sum + loss
             tqdm.write('Validation {} / {}, loss = {}'.format
-                       (batch_id - num_frame_tracks, test_num, loss))
+                       (batchId - num_frame_tracks, test_num, loss))
 
         return val_loss_sum, output
 
@@ -240,7 +239,8 @@ if __name__ == "__main__":
 
     # Run the trainer
     if args.train == 'train':
-        for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
+        # trainer.params['epoch_num']
+        for epoch_id in tqdm(range(0,2)):
             trainer.run_train_epoch(epoch_id)
 
             # reset the current search frame if all clusters have been searched
