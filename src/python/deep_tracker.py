@@ -95,7 +95,8 @@ class Trainer():
         mask = torch.zeros((13, 280, 512))
         for index in locs:
             mask[index[2], index[0], index[1]] = 1
-
+        mask = mask.reshape(
+            (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
         return mask
 
     def forward(self, input_seq, mask):
@@ -235,7 +236,6 @@ if __name__ == "__main__":
     trainer.load_data(track='../../data/tracks.pickle',
                       labled='../../data/raw3data.npy',
                       count='../../data/counts.json')
-
 
     # Run the trainer
     if args.train == 'train':

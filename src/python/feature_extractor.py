@@ -69,8 +69,11 @@ class FeatureExtractor(nn.Module):
         '''
         # TODO: need to modify the shapes for 3d
         tqdm.write('Input seq: {}'.format(input_seq.shape))
-        # time_steps = input_seq.shape[1]
-        # print(time_steps)
+        
+        origBatch = input_seq.size(0)
+        origTimeSteps = input_seq.size(1)
+
+
         input_seq = input_seq.view(-1,
                                    input_seq.size(2),
                                    input_seq.size(3),
@@ -97,7 +100,7 @@ class FeatureExtractor(nn.Module):
 
         tqdm.write('permutes: {}'.format(H.shape))
 
-        H = H.reshape(-1, 70, 512, 8)
+        H = H.reshape(-1, origTimeSteps, 512, 8)
 
         tqdm.write('reshaped: {}'.format(H.shape))
         return H

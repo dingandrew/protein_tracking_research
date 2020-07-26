@@ -68,9 +68,6 @@ class Network(nn.Module):
         #run cnn's on input
         frameFeatures = self.frame_features(input_seq)
         tqdm.write('frame feautres shape: {}'.format(frameFeatures.shape))
-
-        target = target[None, None, 1 ,: ,: ,:]
-        print(target.shape)
         maskFeatures = self.mask_feature(target)
         tqdm.write('mask features shape: {}'.format(maskFeatures.shape))
         # batch, time_frame, (x_filter_size * y_filter_size), final output filters
