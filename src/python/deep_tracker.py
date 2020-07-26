@@ -88,16 +88,22 @@ class Trainer():
         test_num = self.counts[str(time_step)] - train_num
         return train_num, test_num
 
-    def getMask(self, locs):
+    def getMask(self, curr_track):
         '''
             Create a mask that contains just that cluster
         '''
-        mask = torch.zeros((13, 280, 512))
-        for index in locs:
-            mask[index[2], index[0], index[1]] = 1
-        mask = mask.reshape(
-            (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
-        return mask
+        # mask = torch.zeros((13, 280, 512))
+        # for index in locs:
+        #     mask[index[2], index[0], index[1]] = 1
+        # mask = mask.reshape(
+        #     (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
+        # return mask
+
+        a = torch.zeros((6, 1, 4))
+        a[:, 0, 0] = 1
+        a[:, 0, 1:] = torch.FloatTensor(curr_track.centroid)
+
+        return a
 
     def forward(self, input_seq, mask):
         '''
@@ -171,7 +177,7 @@ class Trainer():
         # TODO: increment examples
         for batchId in range(self.trainExample, self.trainExample + self.params['batch_size']):
             currTrack = frame_tracks[batchId]
-            mask = self.getMask(currTrack.locs)
+            mask = self.getMask(currTrack)
 
             loss, output = self.run_batch(self.full_data, mask, 'train')
 
@@ -215,7 +221,7 @@ class Trainer():
 
         for batchId in range(num_frame_tracks - 1 , num_frame_tracks - test_num, -1):
             currTrack = frame_tracks[batchId]
-            mask = self.getMask(currTrack.locs)
+            mask = self.getMask(currTrack)
             loss, output = self.run_batch(self.full_data, mask, 'train')
             val_loss_sum = val_loss_sum + loss
             tqdm.write('Validation {} / {}, loss = {}'.format
@@ -237,6 +243,11 @@ if __name__ == "__main__":
                       labled='../../data/raw3data.npy',
                       count='../../data/counts.json')
 
+
+    # print(trainer.getMask( trainer.tracks[3][3]))
+    
+
+    
     # Run the trainer
     if args.train == 'train':
         # trainer.params['epoch_num']

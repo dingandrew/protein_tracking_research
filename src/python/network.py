@@ -62,7 +62,7 @@ class Network(nn.Module):
 
             Input: input_seq has shape [batch, time_step, depth, z, x, y]
                    target, the object we are trying to track through time
-                           it is an binary mask where
+                           it is h_0 
 
         '''
         #run cnn's on input
@@ -80,7 +80,7 @@ class Network(nn.Module):
         # out shape = (batch, seq_len, num_directions * hidden_size)
         # h_n shape  = (num_layers * num_directions, batch, hidden_size)
 
-        out, h_n = self.rnn(frameFeatures)
+        out, h_n = self.rnn(frameFeatures, target)
         print(out.shape, h_n.shape)
         print('out: ', out)
 
