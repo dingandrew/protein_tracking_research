@@ -70,7 +70,6 @@ class FeatureExtractor(nn.Module):
         # TODO: need to modify the shapes for 3d
         tqdm.write('Input seq: {}'.format(input_seq.shape))
         
-        origBatch = input_seq.size(0)
         origTimeSteps = input_seq.size(1)
 
 

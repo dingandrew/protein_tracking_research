@@ -6,7 +6,7 @@
             "conv_features": [
                 1,
                 8,
-                32,
+                16,
                 8
             ],
             "conv_kernels": [
