@@ -81,10 +81,9 @@ class Network(nn.Module):
         # h_n shape  = (num_layers * num_directions, batch, hidden_size)
 
         out, h_n = self.rnn(frameFeatures, target)
-        print(out.shape, h_n.shape)
-        print('out: ', out)
+        print(out.shape, h_n.shape) # torch.Size([1, 70, 8]) torch.Size([6, 1, 4])
+        print('out: ', out) 
 
-        loss = 0
-        label = 0
+        loss = self.loss_calculator(out, target)
 
-        return loss, label
+        return loss, out

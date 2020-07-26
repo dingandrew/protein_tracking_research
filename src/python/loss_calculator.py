@@ -15,5 +15,5 @@ class Loss_Calculator(nn.Module):
         
 
 
-    def forward(self, prediction, actual):
+    def forward(self, prediction, target):
         pass
