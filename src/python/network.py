@@ -48,7 +48,7 @@ class Network(nn.Module):
         self.frame_features = FeatureExtractor(self.params)
 
         #bi directional to get forwards and backwards predicions
-        self.rnn = nn.RNN(input_size=4096, hidden_size=4,
+        self.rnn = nn.RNN(input_size=4096, hidden_size=4, nonlinearity='relu',
                           batch_first=True, num_layers=32, bidirectional=True)
 
         self.loss_calculator = Loss_Calculator()
