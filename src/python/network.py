@@ -49,7 +49,7 @@ class Network(nn.Module):
 
         #bi directional to get forwards and backwards predicions
         self.rnn = nn.RNN(input_size=4096, hidden_size=4,
-                          batch_first=True, num_layers=3, bidirectional=True)
+                          batch_first=True, num_layers=32, bidirectional=True)
 
         self.loss_calculator = Loss_Calculator()
 
@@ -67,8 +67,8 @@ class Network(nn.Module):
         '''
         #run cnn's on input
         frameFeatures = self.frame_features(input_seq)
-        frameFeatures = frameFeatures.reshape((1, 70 , 4096))
-        tqdm.write('frame feautres shape: {}'.format(frameFeatures.shape))
+        frameFeatures = frameFeatures.reshape((1, 30 , 4096))
+        # tqdm.write('frame feautres shape: {}'.format(frameFeatures.shape))
 
         # maskFeatures = self.mask_feature(target)
         # maskFeatures = maskFeatures.reshape((1, 1, 4096)) [6,1,4]
@@ -80,7 +80,7 @@ class Network(nn.Module):
         # out shape = (batch, seq_len, num_directions * hidden_size)
         # h_n shape  = (num_layers * num_directions, batch, hidden_size)
 
-        out, h_n = self.rnn(frameFeatures, target)
+        out, h_n = self.rnn(frameFeatures, target.cuda())
         # print(out.shape, h_n.shape) # torch.Size([1, 70, 8]) torch.Size([6, 1, 4])
         # print('out: ', out) 
 

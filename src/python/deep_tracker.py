@@ -101,7 +101,7 @@ class Trainer():
         #     (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
         # return mask
 
-        a = torch.zeros((6, 1, 4))
+        a = torch.zeros((64, 1, 4))
         a[:, 0, 0] = 1
         a[:, 0, 1:] = torch.FloatTensor(curr_track.centroid)
 
@@ -135,9 +135,9 @@ class Trainer():
         start_time = time.time()
         self.optimizer.zero_grad()
         loss.backward()
-        if self.params['grad_clip'] > 0:
-            nn.utils.clip_grad_norm(self.network.parameters(),
-                                    self.params['grad_clip'])
+        # if self.params['grad_clip'] > 0:
+        #     nn.utils.clip_grad_norm(self.network.parameters(),
+        #                             self.params['grad_clip'])
         self.optimizer.step()
         elapsed_time = time.time() - start_time
         return elapsed_time
@@ -177,8 +177,8 @@ class Trainer():
         currTrack = frame_tracks[self.trainExample]
         mask = self.getMask(currTrack)
 
-        loss, output = self.run_batch(self.full_data, mask, 'train')
-
+        loss, _ = self.run_batch(self.full_data[:, 0:30, :, ...].cuda(), mask, 'train')
+        
         self.trainLossSum = self.trainLossSum + loss
 
         tqdm.write('Epoch: {}, batch: {}, loss: {}'.format(epoch_id,
@@ -214,7 +214,7 @@ class Trainer():
         for batchId in range(num_frame_tracks - 1, num_frame_tracks - test_num, -1):
             currTrack = frame_tracks[batchId]
             mask = self.getMask(currTrack)
-            loss, output = self.run_batch(self.full_data, mask, 'train')
+            loss, output = self.run_batch(self.full_data.cuda(), mask, 'train')
             val_loss_sum = val_loss_sum + loss
             tqdm.write('Validation {} / {}, loss = {}'.format
                        (batchId - num_frame_tracks, test_num, loss))
@@ -231,7 +231,6 @@ if __name__ == "__main__":
     model_config = open_model_json('./model_config.json')
 
     torch.cuda.set_device(0)
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
     # init the training wrapper
     trainer = Trainer(args, model_config[args.model_task])
@@ -254,8 +253,8 @@ if __name__ == "__main__":
 
     # Run the trainer
     if args.train == 'train':
-        # trainer.params['epoch_num']
-        for epoch_id in tqdm(range(0, 2)):
+    
+        for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
             # dynamically calculate the number of training examples
             trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame)
 
@@ -263,10 +262,12 @@ if __name__ == "__main__":
 
             if trainer.trainExample == trainNum:
                 trainer.currSearchFrame += 1
+                trainer.trainExample = 0
 
             # reset the current search frame if all clusters have been searched
             if trainer.currSearchFrame == 70:
                 trainer.currSearchFrame = 0
+                trainer.trainExample = 0
 
     elif args.train == 'predict':
         # if args.init_model == '':

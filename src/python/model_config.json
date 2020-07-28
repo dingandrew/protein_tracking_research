@@ -45,7 +45,7 @@
             ],
             "drop_out": 0.2
         },
-        "epoch_num": 501,
+        "epoch_num": 2000,
         "grad_clip": 5,
         "lr": 0.0005,
         "lr_decay_factor": 1,
