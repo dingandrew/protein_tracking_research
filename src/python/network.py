@@ -51,7 +51,7 @@ class Network(nn.Module):
         self.rnn = nn.RNN(input_size=4096, hidden_size=4,
                           batch_first=True, num_layers=3, bidirectional=True)
 
-        self.loss_calculator = Loss_Calculator(self.params)
+        self.loss_calculator = Loss_Calculator()
 
     def forward(self, input_seq, target, init_time):
         '''
@@ -84,6 +84,6 @@ class Network(nn.Module):
         print(out.shape, h_n.shape) # torch.Size([1, 70, 8]) torch.Size([6, 1, 4])
         print('out: ', out) 
 
-        loss = self.loss_calculator(out, target)
+        loss = self.loss_calculator(out, target[0, 0, ...], init_time - 1)
 
         return loss, out

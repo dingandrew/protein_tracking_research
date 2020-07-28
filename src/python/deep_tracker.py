@@ -6,6 +6,7 @@ import time
 from tqdm import tqdm
 from util import open_model_json, showTensor
 from feature_extractor import FeatureExtractor
+from loss_calculator import Loss_Calculator
 from network import Network
 from track import Track
 
@@ -90,7 +91,7 @@ class Trainer():
 
     def getMask(self, curr_track):
         '''
-            Create a mask that contains just that cluster
+            Create initial input weights
         '''
         # mask = torch.zeros((13, 280, 512))
         # for index in locs:
@@ -245,9 +246,22 @@ if __name__ == "__main__":
 
 
     # print(trainer.getMask( trainer.tracks[3][3]))
-    
+    # lc = Loss_Calculator()
+    # i = torch.randn(1, 70, 8, requires_grad=True)
+    # t = trainer.getMask(trainer.tracks[3][3])[0, 0, ...]
+    # print(i)
+    # print(t)
+    # loss = lc(i, t, 3 - 1)
+    # print('loss', loss)
+    # loss.backward()
 
-    
+
+
+    # trainer.full_data.requires_grad=True
+    # print(trainer.full_data[0, 1, 0, ...])
+
+
+
     # Run the trainer
     if args.train == 'train':
         # trainer.params['epoch_num']

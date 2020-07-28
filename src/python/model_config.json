@@ -45,24 +45,6 @@
             ],
             "drop_out": 0.2
         },
-        "dim_C2_1": 64,
-        "dim_C2_2": 50,
-
-        "dim_C3_1": 8,
-        "dim_C3_2": 8,
-        "dim_C3_3": 50,
-
-        "dim_Y_a": 784,
-        "dim_Y_s": 784,
-
-        "dim_h_o": 200,
-
-        "dim_y_e": 1,
-
-        "dim_y_l": 1,
-
-        "dim_y_p": 4,
-
         "epoch_num": 501,
         "grad_clip": 5,
         "lr": 0.0005,
