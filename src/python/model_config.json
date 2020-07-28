@@ -52,7 +52,7 @@
         "save_interval": 100,
         "batch_size": 32,
         "train_log_interval": 100,
-        "train_test_ratio": 0.85,
+        "train_test_ratio": 0.9,
         "validate_interval": 100
     }
 }
