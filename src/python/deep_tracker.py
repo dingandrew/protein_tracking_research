@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import torch
+import torch.nn as nn
 import pickle
 import time
 from tqdm import tqdm
@@ -191,26 +192,26 @@ class Trainer():
                                                                  loss))
 
             # record metrics every 100 epochs
-            if self.params['train_log_interval'] > 0 and epoch_id % self.params['train_log_interval'] == 0:
-                self.benchmark['train_loss'].append(
-                    (epoch_id, self.trainLossSum/self.params['train_log_interval']))
-                self.trainLossSum = 0
+            # if self.params['train_log_interval'] > 0 and epoch_id % self.params['train_log_interval'] == 0:
+            #     self.benchmark['train_loss'].append(
+            #         (epoch_id, self.trainLossSum/self.params['train_log_interval']))
+            #     self.trainLossSum = 0
 
-            if self.params['validate_interval'] > 0 and epoch_id % self.params['validate_interval'] == 0:
-                # run the newtwork on the test clusters
-                val_loss, output = self.run_test_epoch(frame_tracks, testNum)
-                self.network.train()
-                self.benchmark['val_loss'].append((epoch_id, val_loss))
-                savepoint = {'param': self.params, 'benchmark': self.benchmark}
-                utils.save_json(savepoint, self.save_path +
-                                str(epoch_id) + '_bench.json')
-                savepoint['net_states'] = self.network.state_dict()
-                torch.save(savepoint, self.save_path + str(i) + '.pt')
+            # if self.params['validate_interval'] > 0 and epoch_id % self.params['validate_interval'] == 0:
+            #     # run the newtwork on the test clusters
+            #     val_loss, output = self.run_test_epoch(frame_tracks, testNum)
+            #     self.network.train()
+            #     self.benchmark['val_loss'].append((epoch_id, val_loss))
+            #     savepoint = {'param': self.params, 'benchmark': self.benchmark}
+            #     # utils.save_json(savepoint, self.save_path +
+            #                     # str(epoch_id) + '_bench.json')
+            #     savepoint['net_states'] = self.network.state_dict()
+            #     torch.save(savepoint, self.save_path + str(i) + '.pt')
 
-            if self.params['save_interval'] > 0 and epoch_id % self.params['save_interval'] == 0:
-                savepoint = {'param': self.params, 'benchmark': self.benchmark}
-                savepoint['net_states'] = self.network.state_dict()
-                torch.save(savepoint, self.save_path + 'latest.pt')
+            # if self.params['save_interval'] > 0 and epoch_id % self.params['save_interval'] == 0:
+            #     savepoint = {'param': self.params, 'benchmark': self.benchmark}
+            #     savepoint['net_states'] = self.network.state_dict()
+            #     torch.save(savepoint, self.save_path + 'latest.pt')
 
     def run_test_epoch(self, frame_tracks, test_num):
         '''
@@ -273,19 +274,20 @@ if __name__ == "__main__":
                 trainer.currSearchFrame = 0
 
     elif args.train == 'predict':
-        if args.init_model == '':
-            print('ERROR: Must specify initial model to predict with it')
-            exit()
+        # if args.init_model == '':
+        #     print('ERROR: Must specify initial model to predict with it')
+        #     exit()
 
-        savepoint = torch.load(trainer.save_path + 'latest.pt')
-        trainer.network.load_state_dict(savepoint['net_states'])
+        # savepoint = torch.load(trainer.save_path + 'latest.pt')
+        # trainer.network.load_state_dict(savepoint['net_states'])
 
-        benchmark = savepoint['benchmark']
-        print('Model is initialized from ' + f)
+        # benchmark = savepoint['benchmark']
+        # print('Model is initialized from ' + f)
 
-        param_num = sum([param.data.numel() for param in net.parameters()])
-        print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
+        # param_num = sum([param.data.numel() for param in net.parameters()])
+        # print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
-        # TODO: run all clusters through this
+        # # TODO: run all clusters through this
 
-        trainer.run_prediction(frame_tracks, cluster_count)
+        # trainer.run_prediction(frame_tracks, cluster_count)
+        pass    
