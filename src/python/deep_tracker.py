@@ -164,13 +164,13 @@ class Trainer():
 
     def run_train_epoch(self, epoch_id):
         '''
-            Train one batch
+            Train one batch we have batch size of one due to the time and size 
+            of training one example
         '''
         # configure network for training
         self.network.train()
 
-        # dynamically calculate the number of training examples
-        trainNum, testNum = self.calc_batches(self.currSearchFrame)
+
 
         # get the clusters in this frame
         frame_tracks = self.tracks[self.currSearchFrame]
@@ -266,7 +266,19 @@ if __name__ == "__main__":
     if args.train == 'train':
         # trainer.params['epoch_num']
         for epoch_id in tqdm(range(0,2)):
+            # dynamically calculate the number of training examples
+            trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame)
+
+
+
             trainer.run_train_epoch(epoch_id)
+
+
+            if trainer.trainExample == trainNum:
+                trainer.currSearchFrame += 1
+            
+
+
 
             # reset the current search frame if all clusters have been searched
             if trainer.currSearchFrame == 70:
