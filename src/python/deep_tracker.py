@@ -103,7 +103,9 @@ class Trainer():
 
         a = torch.zeros((64, 1, 4))
         a[:, 0, 0] = 1
-        a[:, 0, 1:] = torch.FloatTensor(curr_track.centroid)
+        a[:, 0, 1] = curr_track.centroid[2] / 13
+        a[:, 0, 2] = curr_track.centroid[0] / 280
+        a[:, 0, 3] = curr_track.centroid[1] / 512
 
         return a
 

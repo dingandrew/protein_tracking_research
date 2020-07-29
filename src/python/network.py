@@ -79,11 +79,11 @@ class Network(nn.Module):
         # h_0 shape = (num_layers * 2, batch, input_size)
         # out shape = (batch, seq_len, num_directions * hidden_size)
         # h_n shape  = (num_layers * num_directions, batch, hidden_size)
-
+   
         out, h_n = self.rnn(frameFeatures, target.cuda())
         # print(out.shape, h_n.shape) # torch.Size([1, 70, 8]) torch.Size([6, 1, 4])
         # print('out: ', out) 
-
+        
         loss = self.loss_calculator(out, target[0, 0, ...], init_time - 1)
 
         return loss, out
