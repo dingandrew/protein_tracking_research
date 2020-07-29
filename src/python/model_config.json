@@ -54,5 +54,73 @@
         "train_log_interval": 100,
         "train_test_ratio": 0.9,
         "validate_interval": 100
+    },
+
+    "default1": {
+        "O": 4,
+        "T": 70,
+        "cnn": {
+            "conv_features": [
+                1,
+                8,
+                32,
+                16,
+                8
+            ],
+            "conv_kernels": [
+                [
+                    1,
+                    1,
+                    1
+                ],
+                [
+                    4,
+                    4,
+                    4
+                ],
+                [
+                    3,
+                    3,
+                    3
+                ],
+                [
+                    1,
+                    1,
+                    1
+                ]
+            ],
+            "out_sizes": [
+                [
+                    64,
+                    64,
+                    64
+                ],
+                [
+                    32,
+                    32,
+                    32
+                ],
+                [
+                    16,
+                    16,
+                    16
+                ],
+                [
+                    8,
+                    8,
+                    8
+                ]
+            ],
+            "drop_out": 0.2
+        },
+        "epoch_num": 2000,
+        "grad_clip": 5,
+        "lr": 0.0005,
+        "lr_decay_factor": 1,
+        "save_interval": 100,
+        "batch_size": 32,
+        "train_log_interval": 100,
+        "train_test_ratio": 0.9,
+        "validate_interval": 100
     }
 }

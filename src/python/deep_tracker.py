@@ -42,7 +42,7 @@ class Trainer():
         self.trainLossSum = 0
         self.currSearchFrame = 1
         # track the current example
-        self.trainExample = 1
+        self.trainExample = 0
         self.testExample = 0
         # need to call load_data
         self.full_data = None
@@ -122,7 +122,7 @@ class Trainer():
         '''
         start_time = time.time()
         loss, output = self.network(
-            input_seq.float(), mask.float(), trainer.currSearchFrame)
+            input_seq.cuda().float(), mask.cuda().float(), trainer.currSearchFrame)
         elapsed_time = time.time() - start_time
         return loss, elapsed_time, output
 
@@ -179,7 +179,7 @@ class Trainer():
         currTrack = frame_tracks[self.trainExample]
         mask = self.getMask(currTrack)
 
-        loss, _ = self.run_batch(self.full_data[:, 0:30, :, ...].cuda(), mask, 'train')
+        loss, _ = self.run_batch(self.full_data[:, 0:30, :, ...], mask, 'train')
         
         self.trainLossSum = self.trainLossSum + loss
 
@@ -272,20 +272,23 @@ if __name__ == "__main__":
                 trainer.trainExample = 0
 
     elif args.train == 'predict':
-        # if args.init_model == '':
-        #     print('ERROR: Must specify initial model to predict with it')
-        #     exit()
+        if args.init_model == '':
+            print('ERROR: Must specify initial model to predict with it')
+            exit()
 
-        # savepoint = torch.load(trainer.save_path + 'latest.pt')
-        # trainer.network.load_state_dict(savepoint['net_states'])
+        savepoint = torch.load(trainer.save_path + args.init_model)
+        # print(savepoint['net_states'])
+        trainer.network.load_state_dict(savepoint['net_states'])
 
-        # benchmark = savepoint['benchmark']
-        # print('Model is initialized from ' + f)
+        benchmark = savepoint['benchmark']
+        print('Model is initialized from ',
+              trainer.save_path + args.init_model)
 
-        # param_num = sum([param.data.numel() for param in net.parameters()])
-        # print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
+        param_num = sum([param.data.numel() for param in trainer.network.parameters()])
+        print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
-        # # TODO: run all clusters through this
-
-        # trainer.run_prediction(frame_tracks, cluster_count)
+        # TODO: run all clusters through this
+        with torch.no_grad():
+            loss, elapsed_time, output = trainer.forward(trainer.full_data, trainer.getMask(trainer.tracks[1][0]))
+        print(loss, elapsed_time, output)
         pass
