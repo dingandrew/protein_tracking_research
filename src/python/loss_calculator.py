@@ -16,10 +16,12 @@ class Loss_Calculator(nn.Module):
         self.mse = nn.MSELoss()
 
 
-    def forward(self, prediction, target, ground_time):
+    def forward(self, prediction, target):
         # torch.Size([1, 70, 8]) torch.Size([6, 1, 4])
-        actual = prediction[:, :, 4:].clone().detach()
-        actual[0, ground_time, 0:4] = target
+        # actual = prediction[:, :, 4:].clone().detach()
+        # actual[0, ground_time, 0:4] = target
         
-        loss = self.mse(prediction[:,:, :4], actual)
+        # loss = self.mse(prediction[:,:, :4], actual)
+        # return loss
+        loss = self.mse(prediction, target)
         return loss

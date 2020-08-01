@@ -39,6 +39,7 @@ class Trainer():
                                           lr=self.params['lr'],
                                           betas=(0.9, 0.99),
                                           weight_decay=1e-6)
+        self.mseLoss = nn.MSELoss().cuda()
         self.trainLossSum = 0
         self.currSearchFrame = 1
         # track the current example
@@ -94,20 +95,25 @@ class Trainer():
         '''
             Create initial input weights
         '''
-        # mask = torch.zeros((13, 280, 512))
-        # for index in locs:
-        #     mask[index[2], index[0], index[1]] = 1
-        # mask = mask.reshape(
-        #     (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
-        # return mask
+        mask = torch.zeros((13, 280, 512))
+        for index in curr_track.locs:
+            mask[index[2], index[0], index[1]] = 1
+        mask = mask.reshape(
+            (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
+        a = torch.zeros(4)
+        a[0] = 1
+        a[1] = curr_track.centroid[2]
+        a[2] = curr_track.centroid[0]
+        a[3] = curr_track.centroid[1]
+        return mask, a
 
-        a = torch.zeros((64, 1, 4))
-        a[:, 0, 0] = 1
-        a[:, 0, 1] = curr_track.centroid[2] / 13
-        a[:, 0, 2] = curr_track.centroid[0] / 280
-        a[:, 0, 3] = curr_track.centroid[1] / 512
+        # a = torch.zeros((64, 1, 4))
+        # a[:, 0, 0] = 1
+        # a[:, 0, 1] = curr_track.centroid[2] / 13
+        # a[:, 0, 2] = curr_track.centroid[0] / 280
+        # a[:, 0, 3] = curr_track.centroid[1] / 512
 
-        return a
+        # return a
 
     def forward(self, input_seq, mask):
         '''
@@ -179,13 +185,14 @@ class Trainer():
         currTrack = frame_tracks[self.trainExample]
         mask = self.getMask(currTrack)
 
-        loss, _ = self.run_batch(self.full_data[:, 0:30, :, ...], mask, 'train')
-        
+        loss, _ = self.run_batch(
+            self.full_data[0, 0:30, :, ...], mask, 'train')
+
         self.trainLossSum = self.trainLossSum + loss
 
         tqdm.write('Epoch: {}, batch: {}, loss: {}'.format(epoch_id,
-                                                             self.trainExample,
-                                                             loss))
+                                                           self.trainExample,
+                                                           loss))
         self.trainExample += 1
 
         # record metrics every 100 epochs
@@ -199,11 +206,45 @@ class Trainer():
         #     val_loss, output = self.run_test_epoch(frame_tracks, 5)
         #     self.network.train()
 
-
         if self.params['save_interval'] > 0 and epoch_id % self.params['save_interval'] == 0:
             savepoint = {'param': self.params, 'benchmark': self.benchmark}
             savepoint['net_states'] = self.network.state_dict()
             torch.save(savepoint, self.save_path + 'latest.pt')
+
+    def run_train2_epoch(self, epoch_id):
+        '''
+            Train one batch we have batch size of one due to the time and size 
+            of training one example
+        '''
+        # configure network for training
+        self.network.train()
+
+        # get the clusters in this frame
+        frame_tracks = self.tracks[self.currSearchFrame]
+        currTrack = frame_tracks[self.trainExample]
+        mask, label = self.getMask(currTrack)
+
+        frame1 = self.full_data[0, self.currSearchFrame, 0, ...]
+        frame2 = self.full_data[0, self.currSearchFrame + 1, 0, ...]
+        frame1 = frame1.reshape(
+            (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
+        frame2 = frame2.reshape(
+            (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
+        print(frame1.shape, frame2.shape)
+
+        loss, out1, out2 = self.network(frame1.cuda().float(),
+                                        frame2.cuda().float(),
+                                        mask.cuda().float(),
+                                        label.cuda().float())
+
+        self.backward(loss)
+
+        self.trainLossSum = self.trainLossSum + loss
+
+        tqdm.write('Epoch: {}, batch: {}, loss: {}'.format(epoch_id,
+                                                           self.trainExample,
+                                                           loss))
+        self.trainExample += 1
 
     def run_test_epoch(self, frame_tracks, test_num):
         '''
@@ -253,42 +294,48 @@ if __name__ == "__main__":
     # trainer.full_data.requires_grad=True
     # print(trainer.full_data[0, 1, 0, ...])
 
+    # trainer.run_train2_epoch(0)
+
+    trainer.run_train2_epoch(0)
+
     # Run the trainer
-    if args.train == 'train':
-    
-        for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
-            # dynamically calculate the number of training examples
-            trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame)
+    # if args.train == 'train':
 
-            trainer.run_train_epoch(epoch_id)
+    #     for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
+    #         # dynamically calculate the number of training examples
+    #         trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame)
 
-            if trainer.trainExample == trainNum:
-                trainer.currSearchFrame += 1
-                trainer.trainExample = 0
+    #         trainer.run_train_epoch(epoch_id)
 
-            # reset the current search frame if all clusters have been searched
-            if trainer.currSearchFrame == 70:
-                trainer.currSearchFrame = 0
-                trainer.trainExample = 0
+    #         if trainer.trainExample == trainNum:
+    #             trainer.currSearchFrame += 1
+    #             trainer.trainExample = 0
 
-    elif args.train == 'predict':
-        if args.init_model == '':
-            print('ERROR: Must specify initial model to predict with it')
-            exit()
+    #         # reset the current search frame if all clusters have been searched
+    #         if trainer.currSearchFrame == 69:
+    #             trainer.currSearchFrame = 0
+    #             trainer.trainExample = 0
 
-        savepoint = torch.load(trainer.save_path + args.init_model)
-        # print(savepoint['net_states'])
-        trainer.network.load_state_dict(savepoint['net_states'])
+    # elif args.train == 'predict':
+    #     if args.init_model == '':
+    #         print('ERROR: Must specify initial model to predict with it')
+    #         exit()
 
-        benchmark = savepoint['benchmark']
-        print('Model is initialized from ',
-              trainer.save_path + args.init_model)
+    #     savepoint = torch.load(trainer.save_path + args.init_model)
+    #     # print(savepoint['net_states'])
+    #     trainer.network.load_state_dict(savepoint['net_states'])
 
-        param_num = sum([param.data.numel() for param in trainer.network.parameters()])
-        print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
+    #     benchmark = savepoint['benchmark']
+    #     print('Model is initialized from ',
+    #           trainer.save_path + args.init_model)
 
-        # TODO: run all clusters through this
-        with torch.no_grad():
-            loss, elapsed_time, output = trainer.forward(trainer.full_data, trainer.getMask(trainer.tracks[1][0]))
-        print(loss, elapsed_time, output)
-        pass
+    #     param_num = sum([param.data.numel()
+    #                      for param in trainer.network.parameters()])
+    #     print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
+
+    #     # TODO: run all clusters through this
+    #     with torch.no_grad():
+    #         loss, elapsed_time, output = trainer.forward(
+    #             trainer.full_data, trainer.getMask(trainer.tracks[1][0]))
+    #     print(loss, elapsed_time, output)
+    #     pass

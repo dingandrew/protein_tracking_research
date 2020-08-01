@@ -43,8 +43,9 @@ class FeatureExtractor(nn.Module):
                     'cnn3D_' + str(layer),
                     nn.Conv3d(in_channels=self.cnnParams['conv_features'][layer],
                               out_channels=self.cnnParams['conv_features'][layer+1],
+                              stride=self.cnnParams['conv_strides'][layer],
                               kernel_size=self.cnnParams['conv_kernels'][layer],
-                              stride=(1, 1, 1))
+                              )
                     )
             # setattr(self,
             #         'batchNorm3D_' + str(layer),
@@ -79,7 +80,7 @@ class FeatureExtractor(nn.Module):
                                    input_seq.size(4),
                                    input_seq.size(5))  # (batch * time_frame), D, Z , H, W
 
-        # tqdm.write('view: {}'.format(input_seq.shape))
+        tqdm.write('view: {}'.format(input_seq.shape))
 
         # will have shape (batch * time_frame), final output filters, x_filter_size, y_filter_size
         H = input_seq
@@ -89,17 +90,17 @@ class FeatureExtractor(nn.Module):
             H = getattr(self, 'maxPool3D_' + str(layer))(H)
             # H = getattr(self, 'dropOut3D_' + str(layer))(H)
 
-        # tqdm.write('conved: {}'.format(H.shape))
+        tqdm.write('conved: {}'.format(H.shape))
         H = self.activation(H)
 
-        # tqdm.write('activated: {}'.format(H.shape))
+        tqdm.write('activated: {}'.format(H.shape))
         # showTensor(H[0, 0, ...])
         # (batch * time_frame), z_filter, x_filter_size, y_filter_size, final output filters
         H = H.permute(0, 2, 3, 4, 1)
 
-        # tqdm.write('permutes: {}'.format(H.shape))
+        tqdm.write('permutes: {}'.format(H.shape))
 
         H = H.reshape(-1, origTimeSteps, 512, 8)
 
-        # tqdm.write('reshaped: {}'.format(H.shape))
+        tqdm.write('reshaped: {}'.format(H.shape))
         return H
