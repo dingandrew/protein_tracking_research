@@ -115,7 +115,7 @@ class Trainer():
 
         # return a
 
-    def forward(self, input_seq, mask):
+    def forward(self, frame1, frame2, mask, label):
         '''
             Forward function return loss
 
@@ -127,10 +127,12 @@ class Trainer():
                     output, the predictions for each frame
         '''
         start_time = time.time()
-        loss, output = self.network(
-            input_seq.cuda().float(), mask.cuda().float(), trainer.currSearchFrame)
+        loss, _, _ = self.network(frame1.cuda().float(),
+                                        frame2.cuda().float(),
+                                        mask.cuda().float(),
+                                        label.cuda().float())
         elapsed_time = time.time() - start_time
-        return loss, elapsed_time, output
+        return loss, elapsed_time
 
     def backward(self, loss):
         '''
@@ -150,7 +152,7 @@ class Trainer():
         elapsed_time = time.time() - start_time
         return elapsed_time
 
-    def run_batch(self, full_data, mask, train):
+    def run_batch(self,frame1, frame2, mask, label, train):
         '''
             The forward and backward passes for an iteration
 
@@ -161,15 +163,15 @@ class Trainer():
             Output: loss, output
         '''
         if train == 'train':
-            loss, forward_time, output = self.forward(full_data, mask)
+            loss, forward_time = self.forward(frame1, frame2, mask, label)
             backward_time = self.backward(loss)
         else:
             with torch.no_grad():
-                loss, forward_time, output = self.forward(full_data, mask)
+                loss, forward_time = self.forward(frame1, frame2, mask, label)
             backward_time = 0
 
         tqdm.write('Runtime: {}s'.format(forward_time + backward_time))
-        return loss.item(), output
+        return loss.item()
 
     def run_train_epoch(self, epoch_id):
         '''
@@ -230,14 +232,9 @@ class Trainer():
             (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
         frame2 = frame2.reshape(
             (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
-        print(frame1.shape, frame2.shape)
+        # print(frame1.shape, frame2.shape)
 
-        loss, out1, out2 = self.network(frame1.cuda().float(),
-                                        frame2.cuda().float(),
-                                        mask.cuda().float(),
-                                        label.cuda().float())
-
-        self.backward(loss)
+        loss = self.run_batch(frame1, frame2, mask, label, 'train')
 
         self.trainLossSum = self.trainLossSum + loss
 
@@ -245,6 +242,25 @@ class Trainer():
                                                            self.trainExample,
                                                            loss))
         self.trainExample += 1
+
+        # record metrics every 100 epochs
+        if self.params['train_log_interval'] > 0 and epoch_id % self.params['train_log_interval'] == 0:
+            self.benchmark['train_loss'].append(
+                (epoch_id, self.trainLossSum/self.params['train_log_interval']))
+            self.trainLossSum = 0
+
+        # if self.params['validate_interval'] > 0 and epoch_id % self.params['validate_interval'] == 0:
+        #     # run the newtwork on the test clusters
+        #     val_loss, output = self.run_test_epoch(frame_tracks, 5)
+        #     self.network.train()
+
+        if self.params['save_interval'] > 0 and epoch_id % self.params['save_interval'] == 0:
+            savepoint = {'param': self.params, 'benchmark': self.benchmark}
+            savepoint['net_states'] = self.network.state_dict()
+            torch.save(savepoint, self.save_path + 'latest.pt')
+
+
+
 
     def run_test_epoch(self, frame_tracks, test_num):
         '''
@@ -296,46 +312,45 @@ if __name__ == "__main__":
 
     # trainer.run_train2_epoch(0)
 
-    trainer.run_train2_epoch(0)
 
     # Run the trainer
-    # if args.train == 'train':
+    if args.train == 'train':
 
-    #     for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
-    #         # dynamically calculate the number of training examples
-    #         trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame)
+        for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
+            # dynamically calculate the number of training examples
+            trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame)
 
-    #         trainer.run_train_epoch(epoch_id)
+            trainer.run_train2_epoch(epoch_id)
 
-    #         if trainer.trainExample == trainNum:
-    #             trainer.currSearchFrame += 1
-    #             trainer.trainExample = 0
+            if trainer.trainExample == trainNum:
+                trainer.currSearchFrame += 1
+                trainer.trainExample = 0
 
-    #         # reset the current search frame if all clusters have been searched
-    #         if trainer.currSearchFrame == 69:
-    #             trainer.currSearchFrame = 0
-    #             trainer.trainExample = 0
+            # reset the current search frame if all clusters have been searched
+            if trainer.currSearchFrame == 69:
+                trainer.currSearchFrame = 0
+                trainer.trainExample = 0
 
-    # elif args.train == 'predict':
-    #     if args.init_model == '':
-    #         print('ERROR: Must specify initial model to predict with it')
-    #         exit()
+    elif args.train == 'predict':
+        if args.init_model == '':
+            print('ERROR: Must specify initial model to predict with it')
+            exit()
 
-    #     savepoint = torch.load(trainer.save_path + args.init_model)
-    #     # print(savepoint['net_states'])
-    #     trainer.network.load_state_dict(savepoint['net_states'])
+        savepoint = torch.load(trainer.save_path + args.init_model)
+        # print(savepoint['net_states'])
+        trainer.network.load_state_dict(savepoint['net_states'])
 
-    #     benchmark = savepoint['benchmark']
-    #     print('Model is initialized from ',
-    #           trainer.save_path + args.init_model)
+        benchmark = savepoint['benchmark']
+        print('Model is initialized from ',
+              trainer.save_path + args.init_model)
 
-    #     param_num = sum([param.data.numel()
-    #                      for param in trainer.network.parameters()])
-    #     print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
+        param_num = sum([param.data.numel()
+                         for param in trainer.network.parameters()])
+        print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
-    #     # TODO: run all clusters through this
-    #     with torch.no_grad():
-    #         loss, elapsed_time, output = trainer.forward(
-    #             trainer.full_data, trainer.getMask(trainer.tracks[1][0]))
-    #     print(loss, elapsed_time, output)
-    #     pass
+        # TODO: run all clusters through this
+        with torch.no_grad():
+            loss, elapsed_time, output = trainer.forward(
+                trainer.full_data, trainer.getMask(trainer.tracks[1][0]))
+        print(loss, elapsed_time, output)
+        pass

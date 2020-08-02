@@ -15,7 +15,6 @@ class Loss_Calculator(nn.Module):
         
         self.mse = nn.MSELoss()
 
-
     def forward(self, prediction, target):
         # torch.Size([1, 70, 8]) torch.Size([6, 1, 4])
         # actual = prediction[:, :, 4:].clone().detach()

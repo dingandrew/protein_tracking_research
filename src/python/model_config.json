@@ -5,9 +5,9 @@
         "cnn": {
             "conv_features": [
                 1,
-                128,
                 64,
-                32
+                64,
+                8
             ],
             "conv_kernels": [
                 [
@@ -45,9 +45,9 @@
             ],
             "out_sizes": [
                 [
-                    128,
-                    128,
-                    128
+                    64,
+                    64,
+                    64
                 ],
                 [
                     64,
@@ -55,18 +55,18 @@
                     64
                 ],
                 [
-                    32,
-                    32,
-                    32
+                    4,
+                    4,
+                    4
                 ]
             ],
             "drop_out": 0.2
         },
-        "epoch_num": 2000,
+        "epoch_num": 10000,
         "grad_clip": 5,
-        "lr": 0.0005,
+        "lr": 0.005,
         "lr_decay_factor": 1,
-        "save_interval": 100,
+        "save_interval": 1000,
         "batch_size": 32,
         "train_log_interval": 100,
         "train_test_ratio": 0.9,

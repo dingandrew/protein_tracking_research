@@ -52,12 +52,12 @@ class Network(nn.Module):
         # self.rnn = nn.RNN(input_size=4096, hidden_size=4, nonlinearity='tanh',
         #                   batch_first=True, num_layers=32, bidirectional=True)
 
-        self.fcIn = nn.Linear(8192, 16384)
-        self.fc1 = nn.Linear(16384, 16384)
-        self.fc2 = nn.Linear(16384, 8192)
-        self.fc3 = nn.Linear(8192, 4096)
+        self.fcIn = nn.Linear(1024, 16384)
+        self.fc1 = nn.Linear(16384, 4096)
+        self.fc2 = nn.Linear(4096, 8192)
+        self.fc3 = nn.Linear(8192, 512)
         # concatenate target here
-        self.fc4 = nn.Linear(8192, 2048)
+        self.fc4 = nn.Linear(512, 2048)
         self.fc5 = nn.Linear(2048, 512)
         self.fc6 = nn.Linear(512, 4)
         # concatenate init_ground here
@@ -87,60 +87,61 @@ class Network(nn.Module):
         '''
         #run cnn's on input
         frame1Features = self.frame_features(frame1)
-        frame1Features = frame1Features.reshape((4096))
+        # frame1Features = frame1Features.reshape((4096))
         
         frame2Features = self.frame_features(frame2)
-        frame2Features = frame2Features.reshape((4096))
+        # frame2Features = frame2Features.reshape((4096))
 
         targetFeatures = self.frame_features(target)
-        targetFeatures = targetFeatures.reshape((4096))
+        # targetFeatures = targetFeatures.reshape((4096))
 
         # forward frame1 to frame2        
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
-        print(fullFeatures1.shape)
-        H = F.relu(self.fcIn(fullFeatures1))
-        H = F.relu(self.fc1(H))
-        H = F.relu(self.fc2(H))
+        # print(fullFeatures1.shape)
+        H = self.fcIn(fullFeatures1)
+        H = self.fc1(H)
+        H = F.sigmoid(self.fc2(H))
         H = self.fc3(H)
-        H = torch.cat([H, targetFeatures], dim=0)
+        H = H + targetFeatures
         H = self.fc4(H)
-        H = F.relu(self.fc5(H))
-        H = F.relu(self.fc6(H))
+        H = F.sigmoid(self.fc5(H))
+        H = self.fc6(H)
         H = torch.cat([H, init_ground], dim=0)
         out1 = F.relu(self.fcOut(H))
         loss1 = self.loss_calculator(out1, init_ground)
-        print('loss1', loss1)
+        # print('loss1', loss1)
 
         # get pseudolabel
         pseudo_ground = out1.detach().clone()
         if pseudo_ground[0] < 0.5:
             pseudo_ground[:] = 0
 
-        print('pseudo=-----', pseudo_ground)
+        # print('pseudo=-----', pseudo_ground)
 
         # backward frame2 to frame1
         fullFeatures2 = torch.cat([frame2Features, frame1Features], dim=0)
-        print(fullFeatures2.shape)
-        H = F.relu(self.fcIn(fullFeatures2))
-        H = F.relu(self.fc1(H))
-        H = F.relu(self.fc2(H))
+        # print(fullFeatures2.shape)
+        H = self.fcIn(fullFeatures2)
+        H = self.fc1(H)
+        H = F.sigmoid(self.fc2(H))
         H = self.fc3(H)
-        H = torch.cat([H, targetFeatures], dim=0)
+        H = H + targetFeatures
         H = self.fc4(H)
-        H = F.relu(self.fc5(H))
-        H = F.relu(self.fc6(H))
+        H = F.sigmoid(self.fc5(H))
+        H = self.fc6(H)
         H = torch.cat([H, pseudo_ground], dim=0)
         out2 = F.relu(self.fcOut(H))
         loss2 = self.loss_calculator(out2, pseudo_ground)
-        print('loss2', loss2)
+        # print('loss2', loss2)
 
-        print(out1)
-        print(init_ground)
-        print(out2)
+        tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(init_ground.detach(), out1.detach(), out2.detach()))
+        # print(out1)
+        # print(init_ground)
+        # print(out2) 
         
         lossTotal = self.loss_calculator(out2, init_ground) + 0.25 * loss1 + 0.25 * loss2
 
-        print('loss--', lossTotal)
+        # print('loss--', lossTotal)
         # batch, time_frame, (x_filter_size * y_filter_size), final output filters
         # INPUT = batch sepquence_len input_size
         # h_0 shape = (num_layers * 2, batch, input_size)
@@ -153,4 +154,4 @@ class Network(nn.Module):
         
         # loss = self.loss_calculator(out, pseudo_ground)
 
-        return loss1, out1, out2
+        return lossTotal, out1, out2
