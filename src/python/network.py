@@ -34,6 +34,7 @@ class Network(nn.Module):
 
         NOTE: all batch sizes are 1
     '''
+
     def __init__(self, params):
         '''
             See model_config.json for parameter values
@@ -48,28 +49,20 @@ class Network(nn.Module):
 
         self.frame_features = FeatureExtractor(self.params)
 
-        #bi directional to get forwards and backwards predicions
+        # bi directional to get forwards and backwards predicions
         # self.rnn = nn.RNN(input_size=4096, hidden_size=4, nonlinearity='tanh',
         #                   batch_first=True, num_layers=32, bidirectional=True)
 
-        self.fcIn = nn.Linear(1024, 16384)
+        self.fcIn = nn.Linear(24960, 16384)
         self.fc1 = nn.Linear(16384, 4096)
         self.fc2 = nn.Linear(4096, 8192)
-        self.fc3 = nn.Linear(8192, 512)
+        self.fc3 = nn.Linear(8192, 12480)
         # concatenate target here
-        self.fc4 = nn.Linear(512, 2048)
+        self.fc4 = nn.Linear(12480, 2048)
         self.fc5 = nn.Linear(2048, 512)
         self.fc6 = nn.Linear(512, 4)
         # concatenate init_ground here
         self.fcOut = nn.Linear(8, 4)
-
-                                             
-        # self.fcInput = nn.Linear(28 * 28, 200)
-        # self.fc1 = nn.Linear(200, 200)
-        # self.fc2 = nn.Linear(200, 10)
-        # self.fc3 = nn.Linear(200, 10)
-        # self.fc4 = nn.Linear(200, 10)
-        # self.fcOutput = nn.Linear(200, 10)
 
         self.loss_calculator = Loss_Calculator()
 
@@ -85,17 +78,17 @@ class Network(nn.Module):
                            it is h_0 
 
         '''
-        #run cnn's on input
+        # run cnn's on input
         frame1Features = self.frame_features(frame1)
         # frame1Features = frame1Features.reshape((4096))
-        
+
         frame2Features = self.frame_features(frame2)
         # frame2Features = frame2Features.reshape((4096))
 
         targetFeatures = self.frame_features(target)
         # targetFeatures = targetFeatures.reshape((4096))
 
-        # forward frame1 to frame2        
+        # forward frame1 to frame2
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
         # print(fullFeatures1.shape)
         H = self.fcIn(fullFeatures1)
@@ -107,7 +100,16 @@ class Network(nn.Module):
         H = F.sigmoid(self.fc5(H))
         H = self.fc6(H)
         H = torch.cat([H, init_ground], dim=0)
-        out1 = F.relu(self.fcOut(H))
+        H = self.fcOut(H)
+        # apply activations first index is confidence last three are coords
+        confidence = H[0:1]
+        coordinates = H[1:4]
+        tuple_of_activated_parts = (
+            F.sigmoid(first_slice),
+            F.relu(second_slice)
+        )
+        out1 = torch.cat(tuple_of_activated_parts, dim=0)
+        # calculate loss
         loss1 = self.loss_calculator(out1, init_ground)
         # print('loss1', loss1)
 
@@ -130,16 +132,27 @@ class Network(nn.Module):
         H = F.sigmoid(self.fc5(H))
         H = self.fc6(H)
         H = torch.cat([H, pseudo_ground], dim=0)
-        out2 = F.relu(self.fcOut(H))
+        H = self.fcOut(H)
+        # apply activations first index is confidence last three are coords
+        confidence = H[0:1]
+        coordinates = H[1:4]
+        tuple_of_activated_parts = (
+            F.sigmoid(first_slice),
+            F.relu(second_slice)
+        )
+        out2 = torch.cat(tuple_of_activated_parts, dim=0)
+        # calculate loss
         loss2 = self.loss_calculator(out2, pseudo_ground)
         # print('loss2', loss2)
 
-        tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(init_ground.detach(), out1.detach(), out2.detach()))
+        tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
+            init_ground.detach(), out1.detach(), out2.detach()))
         # print(out1)
         # print(init_ground)
-        # print(out2) 
-        
-        lossTotal = self.loss_calculator(out2, init_ground) + 0.25 * loss1 + 0.25 * loss2
+        # print(out2)
+
+        lossTotal = self.loss_calculator(
+            out2, init_ground) + 0.25 * loss1 + 0.25 * loss2
 
         # print('loss--', lossTotal)
         # batch, time_frame, (x_filter_size * y_filter_size), final output filters
@@ -147,11 +160,11 @@ class Network(nn.Module):
         # h_0 shape = (num_layers * 2, batch, input_size)
         # out shape = (batch, seq_len, num_directions * hidden_size)
         # h_n shape  = (num_layers * num_directions, batch, hidden_size)
-   
+
         # out, h_n = self.rnn(frameFeatures, target.cuda())
         # print(out.shape, h_n.shape) # torch.Size([1, 70, 8]) torch.Size([6, 1, 4])
-        # print('out: ', out) 
-        
+        # print('out: ', out)
+
         # loss = self.loss_calculator(out, pseudo_ground)
 
         return lossTotal, out1, out2

@@ -52,11 +52,11 @@ class FeatureExtractor(nn.Module):
             #         nn.BatchNorm3d(
             #             num_features=self.cnnParams['conv_features'][layer+1])
             #         )
-            setattr(self,
-                    'maxPool3D_' + str(layer),
-                    nn.AdaptiveMaxPool3d(
-                        tuple(self.cnnParams['out_sizes'][layer]))
-                    )
+            # setattr(self,
+            #         'maxPool3D_' + str(layer),
+            #         nn.AdaptiveMaxPool3d(
+            #             tuple(self.cnnParams['out_sizes'][layer]))
+            #         )
             # setattr(self,
             #         'dropOut3D_' + str(layer),
             #         nn.Dropout3d(self.cnnParams['drop_out'])
@@ -86,12 +86,13 @@ class FeatureExtractor(nn.Module):
         H = input_seq
         for layer in range(0, self.layer_num - 1):
             H = getattr(self, 'cnn3D_' + str(layer))(H)
+            # tqdm.write('conved: {}'.format(H.shape))
             # H = getattr(self, 'batchNorm3D_' + str(layer))(H)
-            H = getattr(self, 'maxPool3D_' + str(layer))(H)
+            # H = getattr(self, 'maxPool3D_' + str(layer))(H)
             # H = getattr(self, 'dropOut3D_' + str(layer))(H)
 
         # tqdm.write('conved: {}'.format(H.shape))
-        H = self.activation(H)
+        # H = self.activation(H)
 
         # tqdm.write('activated: {}'.format(H.shape))
         # showTensor(H[0, 0, ...])
@@ -100,7 +101,7 @@ class FeatureExtractor(nn.Module):
 
         # tqdm.write('permutes: {}'.format(H.shape))
 
-        H = H.reshape(512)
+        H = H.reshape(12480)
        
         # tqdm.write('reshaped: {}'.format(H.shape))
         return H
