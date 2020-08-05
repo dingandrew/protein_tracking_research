@@ -64,6 +64,7 @@ class Network(nn.Module):
         # concatenate init_ground here
         self.fcOut = nn.Linear(8, 4)
 
+        self.tanhshrink = nn.Tanhshrink()
         self.loss_calculator = Loss_Calculator()
 
     def forward(self, frame1, frame2, target, init_ground):
@@ -89,13 +90,13 @@ class Network(nn.Module):
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
         # print(fullFeatures1.shape)
         H = self.fcIn(fullFeatures1)
-        H = self.fc1(H)
-        H = F.relu(self.fc2(H))
+        H = F.sigmoid(self.fc1(H))
+        H = self.tanhshrink(self.fc2(H))
         H = self.fc3(H)
         H = H + targetFeatures
         H = self.fc4(H)
-        H = F.relu(self.fc5(H))
-        H = self.fc6(H)
+        H = F.sigmoid(self.fc5(H))
+        H = self.tanhshrink(self.fc6(H))
         H = torch.cat([H, init_ground], dim=0)
         H = self.fcOut(H)
         # apply activations first index is confidence last three are coords
@@ -121,13 +122,13 @@ class Network(nn.Module):
         fullFeatures2 = torch.cat([frame2Features, frame1Features], dim=0)
         # print(fullFeatures2.shape)
         H = self.fcIn(fullFeatures2)
-        H = self.fc1(H)
-        H = F.relu(self.fc2(H))
+        H = F.sigmoid(self.fc1(H))
+        H = self.tanhshrink(self.fc2(H))
         H = self.fc3(H)
         H = H + targetFeatures
         H = self.fc4(H)
-        H = F.relu(self.fc5(H))
-        H = self.fc6(H)
+        H = F.sigmoid(self.fc5(H))
+        H = self.tanhshrink(self.fc6(H))
         H = torch.cat([H, pseudo_ground], dim=0)
         H = self.fcOut(H)
         # apply activations first index is confidence last three are coords
