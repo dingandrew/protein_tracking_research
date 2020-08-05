@@ -80,24 +80,21 @@ class Network(nn.Module):
         '''
         # run cnn's on input
         frame1Features = self.frame_features(frame1)
-        # frame1Features = frame1Features.reshape((4096))
 
         frame2Features = self.frame_features(frame2)
-        # frame2Features = frame2Features.reshape((4096))
 
         targetFeatures = self.frame_features(target)
-        # targetFeatures = targetFeatures.reshape((4096))
 
         # forward frame1 to frame2
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
         # print(fullFeatures1.shape)
         H = self.fcIn(fullFeatures1)
         H = self.fc1(H)
-        H = F.sigmoid(self.fc2(H))
+        H = F.relu(self.fc2(H))
         H = self.fc3(H)
         H = H + targetFeatures
         H = self.fc4(H)
-        H = F.sigmoid(self.fc5(H))
+        H = F.relu(self.fc5(H))
         H = self.fc6(H)
         H = torch.cat([H, init_ground], dim=0)
         H = self.fcOut(H)
@@ -125,11 +122,11 @@ class Network(nn.Module):
         # print(fullFeatures2.shape)
         H = self.fcIn(fullFeatures2)
         H = self.fc1(H)
-        H = F.sigmoid(self.fc2(H))
+        H = F.relu(self.fc2(H))
         H = self.fc3(H)
         H = H + targetFeatures
         H = self.fc4(H)
-        H = F.sigmoid(self.fc5(H))
+        H = F.relu(self.fc5(H))
         H = self.fc6(H)
         H = torch.cat([H, pseudo_ground], dim=0)
         H = self.fcOut(H)
@@ -146,7 +143,7 @@ class Network(nn.Module):
         # print('loss2', loss2)
 
         tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
-            init_ground.detach(), out1.detach(), out2.detach()))
+            init_ground.detach(), pseudo_ground.detach(), out2.detach()))
         # print(out1)
         # print(init_ground)
         # print(out2) + 0.25 * loss1 + 0.25 * loss2
