@@ -5,9 +5,9 @@
         "cnn": {
             "conv_features": [
                 1,
-                64,
                 32,
-                8
+                16,
+                4
             ],
             "conv_kernels": [
                 [

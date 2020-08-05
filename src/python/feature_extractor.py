@@ -101,7 +101,7 @@ class FeatureExtractor(nn.Module):
 
         # tqdm.write('permutes: {}'.format(H.shape))
 
-        H = H.reshape(12480)
+        H = H.reshape(6240)
        
         # tqdm.write('reshaped: {}'.format(H.shape))
         return H

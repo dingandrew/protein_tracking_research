@@ -53,14 +53,14 @@ class Network(nn.Module):
         # self.rnn = nn.RNN(input_size=4096, hidden_size=4, nonlinearity='tanh',
         #                   batch_first=True, num_layers=32, bidirectional=True)
 
-        self.fcIn = nn.Linear(24960, 16384)
-        self.fc1 = nn.Linear(16384, 4096)
-        self.fc2 = nn.Linear(4096, 8192)
-        self.fc3 = nn.Linear(8192, 12480)
-        # concatenate target here
-        self.fc4 = nn.Linear(12480, 2048)
-        self.fc5 = nn.Linear(2048, 512)
-        self.fc6 = nn.Linear(512, 4)
+        self.fcIn = nn.Linear(12480, 12480)
+        self.fc1 = nn.Linear(12480, 3120)
+        self.fc2 = nn.Linear(3120, 3120)
+        self.fc3 = nn.Linear(3120, 6240)
+        # add target features here
+        self.fc4 = nn.Linear(6240, 3120)
+        self.fc5 = nn.Linear(3120, 390)
+        self.fc6 = nn.Linear(390, 4)
         # concatenate init_ground here
         self.fcOut = nn.Linear(8, 4)
 
@@ -105,18 +105,18 @@ class Network(nn.Module):
         confidence = H[0:1]
         coordinates = H[1:4]
         tuple_of_activated_parts = (
-            F.sigmoid(first_slice),
-            F.relu(second_slice)
+            F.sigmoid(confidence),
+            F.relu(coordinates)
         )
         out1 = torch.cat(tuple_of_activated_parts, dim=0)
         # calculate loss
-        loss1 = self.loss_calculator(out1, init_ground)
+        # loss1 = self.loss_calculator(out1, init_ground)
         # print('loss1', loss1)
 
         # get pseudolabel
         pseudo_ground = out1.detach().clone()
-        if pseudo_ground[0] < 0.5:
-            pseudo_ground[:] = 0
+        # if pseudo_ground[0] < 0.5:
+        #     pseudo_ground[:] = 0
 
         # print('pseudo=-----', pseudo_ground)
 
@@ -137,22 +137,21 @@ class Network(nn.Module):
         confidence = H[0:1]
         coordinates = H[1:4]
         tuple_of_activated_parts = (
-            F.sigmoid(first_slice),
-            F.relu(second_slice)
+            F.sigmoid(confidence),
+            F.relu(coordinates)
         )
         out2 = torch.cat(tuple_of_activated_parts, dim=0)
         # calculate loss
-        loss2 = self.loss_calculator(out2, pseudo_ground)
+        # loss2 = self.loss_calculator(out2, pseudo_ground)
         # print('loss2', loss2)
 
         tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
             init_ground.detach(), out1.detach(), out2.detach()))
         # print(out1)
         # print(init_ground)
-        # print(out2)
+        # print(out2) + 0.25 * loss1 + 0.25 * loss2
 
-        lossTotal = self.loss_calculator(
-            out2, init_ground) + 0.25 * loss1 + 0.25 * loss2
+        lossTotal = self.loss_calculator(out2, init_ground)
 
         # print('loss--', lossTotal)
         # batch, time_frame, (x_filter_size * y_filter_size), final output filters
