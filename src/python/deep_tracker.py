@@ -127,12 +127,12 @@ class Trainer():
                     output, the predictions for each frame
         '''
         start_time = time.time()
-        loss, _, _ = self.network(frame1.cuda().float(),
+        loss, out1, out2 = self.network(frame1.cuda().float(),
                                         frame2.cuda().float(),
                                         mask.cuda().float(),
                                         label.cuda().float())
         elapsed_time = time.time() - start_time
-        return loss, elapsed_time
+        return loss, out1, out2, elapsed_time
 
     def backward(self, loss):
         '''
@@ -152,7 +152,7 @@ class Trainer():
         elapsed_time = time.time() - start_time
         return elapsed_time
 
-    def run_batch(self,frame1, frame2, mask, label, train):
+    def run_batch(self, frame1, frame2, mask, label, train):
         '''
             The forward and backward passes for an iteration
 
@@ -225,7 +225,6 @@ class Trainer():
         frame_tracks = self.tracks[self.currSearchFrame]
         currTrack = frame_tracks[self.trainExample]
         mask, label = self.getMask(currTrack)
-
         frame1 = self.full_data[0, self.currSearchFrame, 0, ...]
         frame2 = self.full_data[0, self.currSearchFrame + 1, 0, ...]
         frame1 = frame1.reshape(
@@ -258,9 +257,6 @@ class Trainer():
             savepoint = {'param': self.params, 'benchmark': self.benchmark}
             savepoint['net_states'] = self.network.state_dict()
             torch.save(savepoint, self.save_path + 'latest.pt')
-
-
-
 
     def run_test_epoch(self, frame_tracks, test_num):
         '''
@@ -312,7 +308,6 @@ if __name__ == "__main__":
 
     # trainer.run_train2_epoch(0)
 
-
     # Run the trainer
     if args.train == 'train':
 
@@ -348,9 +343,20 @@ if __name__ == "__main__":
                          for param in trainer.network.parameters()])
         print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
+        frame_tracks = trainer.tracks[1]
+        currTrack = frame_tracks[7]
+        mask, label = trainer.getMask(currTrack)
+        frame1 = trainer.full_data[0, 1, 0, ...]
+        frame2 = trainer.full_data[0, 1 + 1, 0, ...]
+        frame1 = frame1.reshape(
+            (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
+        frame2 = frame2.reshape(
+            (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
+
         # TODO: run all clusters through this
         with torch.no_grad():
-            loss, elapsed_time, output = trainer.forward(
-                trainer.full_data, trainer.getMask(trainer.tracks[1][0]))
-        print(loss, elapsed_time, output)
+            loss, out1, out2, elapsed_time = trainer.forward(
+                frame1, frame2, mask, label)
+        print("LOSS", loss)
+        
         pass

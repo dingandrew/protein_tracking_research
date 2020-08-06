@@ -53,14 +53,14 @@ class Network(nn.Module):
         # self.rnn = nn.RNN(input_size=4096, hidden_size=4, nonlinearity='tanh',
         #                   batch_first=True, num_layers=32, bidirectional=True)
 
-        self.fcIn = nn.Linear(12480, 12480)
-        self.fc1 = nn.Linear(12480, 3120)
-        self.fc2 = nn.Linear(3120, 3120)
-        self.fc3 = nn.Linear(3120, 6240)
+        self.fcIn = nn.Linear(12480, 6240)
+        self.fc1 = nn.Linear(6240, 3120)
+        self.fc2 = nn.Linear(3120, 780)
+        self.fc3 = nn.Linear(780, 6240)
         # add target features here
-        self.fc4 = nn.Linear(6240, 3120)
-        self.fc5 = nn.Linear(3120, 390)
-        self.fc6 = nn.Linear(390, 4)
+        self.fc4 = nn.Linear(6240, 780)
+        self.fc5 = nn.Linear(780, 195)
+        self.fc6 = nn.Linear(195, 4)
         # concatenate init_ground here
         self.fcOut = nn.Linear(8, 4)
 
@@ -90,12 +90,12 @@ class Network(nn.Module):
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
         # print(fullFeatures1.shape)
         H = self.fcIn(fullFeatures1)
-        H = F.sigmoid(self.fc1(H))
+        H = torch.sigmoid(self.fc1(H))
         H = self.tanhshrink(self.fc2(H))
         H = self.fc3(H)
         H = H + targetFeatures
         H = self.fc4(H)
-        H = F.sigmoid(self.fc5(H))
+        H = torch.sigmoid(self.fc5(H))
         H = self.tanhshrink(self.fc6(H))
         H = torch.cat([H, init_ground], dim=0)
         H = self.fcOut(H)
@@ -103,7 +103,7 @@ class Network(nn.Module):
         confidence = H[0:1]
         coordinates = H[1:4]
         tuple_of_activated_parts = (
-            F.sigmoid(confidence),
+            torch.sigmoid(confidence),
             F.relu(coordinates)
         )
         out1 = torch.cat(tuple_of_activated_parts, dim=0)
@@ -122,12 +122,12 @@ class Network(nn.Module):
         fullFeatures2 = torch.cat([frame2Features, frame1Features], dim=0)
         # print(fullFeatures2.shape)
         H = self.fcIn(fullFeatures2)
-        H = F.sigmoid(self.fc1(H))
+        H = torch.sigmoid(self.fc1(H))
         H = self.tanhshrink(self.fc2(H))
         H = self.fc3(H)
         H = H + targetFeatures
         H = self.fc4(H)
-        H = F.sigmoid(self.fc5(H))
+        H = torch.sigmoid(self.fc5(H))
         H = self.tanhshrink(self.fc6(H))
         H = torch.cat([H, pseudo_ground], dim=0)
         H = self.fcOut(H)
@@ -135,7 +135,7 @@ class Network(nn.Module):
         confidence = H[0:1]
         coordinates = H[1:4]
         tuple_of_activated_parts = (
-            F.sigmoid(confidence),
+            torch.sigmoid(confidence),
             F.relu(coordinates)
         )
         out2 = torch.cat(tuple_of_activated_parts, dim=0)
@@ -145,10 +145,8 @@ class Network(nn.Module):
 
         tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
             init_ground.detach(), pseudo_ground.detach(), out2.detach()))
-        # print(out1)
-        # print(init_ground)
-        # print(out2) + 0.25 * loss1 + 0.25 * loss2
-
+        
+        # + 0.25 * loss1 + 0.25 * loss2
         lossTotal = self.loss_calculator(out2, init_ground)
 
         # print('loss--', lossTotal)
