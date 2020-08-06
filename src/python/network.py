@@ -60,7 +60,7 @@ class Network(nn.Module):
         # add target features here
         self.fc4 = nn.Linear(6240, 780)
         self.fc5 = nn.Linear(780, 195)
-        self.fc6 = nn.Linear(195, 4)
+        self.fc6 = nn.Linear(195, 8)
         # concatenate init_ground here
         self.fcOut = nn.Linear(8, 4)
 
@@ -88,7 +88,6 @@ class Network(nn.Module):
 
         # forward frame1 to frame2
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
-        # print(fullFeatures1.shape)
         H = self.fcIn(fullFeatures1)
         H = torch.sigmoid(self.fc1(H))
         H = self.tanhshrink(self.fc2(H))
@@ -97,7 +96,7 @@ class Network(nn.Module):
         H = self.fc4(H)
         H = torch.sigmoid(self.fc5(H))
         H = self.tanhshrink(self.fc6(H))
-        H = torch.cat([H, init_ground], dim=0)
+        # H = torch.cat([H, init_ground], dim=0)
         H = self.fcOut(H)
         # apply activations first index is confidence last three are coords
         confidence = H[0:1]
@@ -113,14 +112,13 @@ class Network(nn.Module):
 
         # get pseudolabel
         pseudo_ground = out1.detach().clone()
-        # if pseudo_ground[0] < 0.5:
-        #     pseudo_ground[:] = 0
+        if pseudo_ground[0] <= 0.5:
+            pseudo_ground[:] = 0
 
         # print('pseudo=-----', pseudo_ground)
 
         # backward frame2 to frame1
         fullFeatures2 = torch.cat([frame2Features, frame1Features], dim=0)
-        # print(fullFeatures2.shape)
         H = self.fcIn(fullFeatures2)
         H = torch.sigmoid(self.fc1(H))
         H = self.tanhshrink(self.fc2(H))
@@ -129,7 +127,7 @@ class Network(nn.Module):
         H = self.fc4(H)
         H = torch.sigmoid(self.fc5(H))
         H = self.tanhshrink(self.fc6(H))
-        H = torch.cat([H, pseudo_ground], dim=0)
+        # H = torch.cat([H, pseudo_ground], dim=0)
         H = self.fcOut(H)
         # apply activations first index is confidence last three are coords
         confidence = H[0:1]
