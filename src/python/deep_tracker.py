@@ -163,7 +163,7 @@ class Trainer():
             Output: loss, output
         '''
         if train == 'train':
-            loss, forward_time = self.forward(frame1, frame2, mask, label)
+            loss, _, _, forward_time = self.forward(frame1, frame2, mask, label)
             backward_time = self.backward(loss)
         else:
             with torch.no_grad():
