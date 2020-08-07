@@ -33,7 +33,7 @@ class Loss_Calculator(nn.Module):
         if loss_type == 'forward':
             loss = 0
             if pred_confidence < self.params['confidence_thresh']:
-                loss = self.mse(pred_confidence, torch.tensor([0]))
+                loss = self.mse(pred_confidence, torch.tensor([0]).cuda())
             else:
                 error_dist = torch.abs(pred_coordinate - targ_coordinate)
 
