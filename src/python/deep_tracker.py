@@ -213,7 +213,7 @@ class Trainer():
             savepoint['net_states'] = self.network.state_dict()
             torch.save(savepoint, self.save_path + 'latest.pt')
 
-    def run_train2_epoch(self, epoch_id):
+    def run_train2_epoch(self, epoch_id, testNum):
         '''
             Train one batch we have batch size of one due to the time and size 
             of training one example
@@ -248,10 +248,10 @@ class Trainer():
                 (epoch_id, self.trainLossSum/self.params['train_log_interval']))
             self.trainLossSum = 0
 
-        # if self.params['validate_interval'] > 0 and epoch_id % self.params['validate_interval'] == 0:
-        #     # run the newtwork on the test clusters
-        #     val_loss, output = self.run_test_epoch(frame_tracks, 5)
-        #     self.network.train()
+        if self.params['validate_interval'] > 0 and epoch_id % self.params['validate_interval'] == 0:
+            # run the newtwork on the test clusters
+            val_loss, output = self.run_test_epoch(frame_tracks, testNum)
+            self.network.train()
 
         if self.params['save_interval'] > 0 and epoch_id % self.params['save_interval'] == 0:
             savepoint = {'param': self.params, 'benchmark': self.benchmark}
@@ -266,10 +266,20 @@ class Trainer():
         val_loss_sum = 0
         num_frame_tracks = len(frame_tracks)
 
-        for batchId in range(num_frame_tracks - 1, num_frame_tracks - test_num, -1):
-            currTrack = frame_tracks[batchId]
-            mask = self.getMask(currTrack)
-            loss, output = self.run_batch(self.full_data.cuda(), mask, 'train')
+        for testId in range(num_frame_tracks - 1, num_frame_tracks - test_num, -1):
+            currTrack = frame_tracks[testId]
+            mask, label = self.getMask(currTrack)
+            frame1 = self.full_data[0, self.currSearchFrame, 0, ...]
+            frame2 = self.full_data[0, self.currSearchFrame + 1, 0, ...]
+            frame1 = frame1.reshape(
+                (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
+            frame2 = frame2.reshape(
+                (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
+            # print(frame1.shape, frame2.shape)
+
+            loss = self.run_batch(frame1, frame2, mask, label, 'val')
+
+
             val_loss_sum = val_loss_sum + loss
             tqdm.write('Validation {} / {}, loss = {}'.format
                        (batchId - num_frame_tracks, test_num, loss))
@@ -315,7 +325,7 @@ if __name__ == "__main__":
             # dynamically calculate the number of training examples
             trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame)
 
-            trainer.run_train2_epoch(epoch_id)
+            trainer.run_train2_epoch(epoch_id, testNum)
 
             if trainer.trainExample == trainNum:
                 trainer.currSearchFrame += 1
