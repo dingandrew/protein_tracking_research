@@ -101,7 +101,7 @@ class Trainer():
         mask = mask.reshape(
             (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
         a = torch.zeros(4)
-        a[0] = 1
+        a[0] = 0.9
         a[1] = curr_track.centroid[2]
         a[2] = curr_track.centroid[0]
         a[3] = curr_track.centroid[1]

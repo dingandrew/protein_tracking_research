@@ -22,11 +22,12 @@ class Loss_Calculator(nn.Module):
         
         # loss = self.mse(prediction[:,:, :4], actual)
         # return loss
-        pred_confidence = prediction[0:1]
-        pred_coordinate = prediction[1:4]
+        # pred_confidence = prediction[0:1]
+        # pred_coordinate = prediction[1:4]
 
-        targ_confidence = target[0:1]
-        targ_coordinate = target[1:4]
+        # targ_confidence = target[0:1]
+        # targ_coordinate = target[1:4]
 
-        loss = self.mse(pred_coordinate, targ_coordinate)
+        # loss = self.mse(pred_coordinate, targ_coordinate)
+        loss = self.mse(prediction, target)
         return loss
