@@ -62,6 +62,10 @@
             ],
             "drop_out": 0.2
         },
+        "z_window": 1,
+        "x_window": 3,
+        "y_window": 3,
+        "confidence_thresh" : 0.5,
         "epoch_num": 10000,
         "grad_clip": 5,
         "lr": 0.0005,
@@ -70,7 +74,7 @@
         "batch_size": 32,
         "train_log_interval": 100,
         "train_test_ratio": 0.9,
-        "validate_interval": 100
+        "validate_interval": 50
     },
     "default1": {
         "O": 4,

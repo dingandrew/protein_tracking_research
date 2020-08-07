@@ -163,11 +163,13 @@ class Trainer():
             Output: loss, output
         '''
         if train == 'train':
-            loss, _, _, forward_time = self.forward(frame1, frame2, mask, label)
+            loss, _, _, forward_time = self.forward(
+                frame1, frame2, mask, label)
             backward_time = self.backward(loss)
         else:
             with torch.no_grad():
-                loss, forward_time = self.forward(frame1, frame2, mask, label)
+                loss, _, _, forward_time = self.forward(
+                    frame1, frame2, mask, label)
             backward_time = 0
 
         tqdm.write('Runtime: {}s'.format(forward_time + backward_time))
@@ -187,8 +189,7 @@ class Trainer():
         currTrack = frame_tracks[self.trainExample]
         mask = self.getMask(currTrack)
 
-        loss, _ = self.run_batch(
-            self.full_data[0, 0:30, :, ...], mask, 'train')
+        loss, _ = self.run_batch(self.full_data[0, 0:30, :, ...], mask, 'train')
 
         self.trainLossSum = self.trainLossSum + loss
 
@@ -235,6 +236,13 @@ class Trainer():
 
         loss = self.run_batch(frame1, frame2, mask, label, 'train')
 
+        
+
+
+
+
+
+
         self.trainLossSum = self.trainLossSum + loss
 
         tqdm.write('Epoch: {}, batch: {}, loss: {}'.format(epoch_id,
@@ -250,7 +258,8 @@ class Trainer():
 
         if self.params['validate_interval'] > 0 and epoch_id % self.params['validate_interval'] == 0:
             # run the newtwork on the test clusters
-            val_loss, output = self.run_test_epoch(frame_tracks, testNum)
+            val_loss_avg = self.run_test_epoch(frame_tracks, testNum)
+            tqdm.write('\n\tValidation Loss Average: {}\n'.format(val_loss_avg))
             self.network.train()
 
         if self.params['save_interval'] > 0 and epoch_id % self.params['save_interval'] == 0:
@@ -279,12 +288,11 @@ class Trainer():
 
             loss = self.run_batch(frame1, frame2, mask, label, 'val')
 
-
             val_loss_sum = val_loss_sum + loss
-            tqdm.write('Validation {} / {}, loss = {}'.format
-                       (batchId - num_frame_tracks, test_num, loss))
+            # tqdm.write('Validation {} / {}, loss = {}'.format
+            #            (num_frame_tracks - testId, test_num, loss))
 
-        return val_loss_sum, output
+        return val_loss_sum / test_num
 
     def run_prediction(self, frame_tracks, cluster_count):
         pass
@@ -368,5 +376,5 @@ if __name__ == "__main__":
             loss, out1, out2, elapsed_time = trainer.forward(
                 frame1, frame2, mask, label)
         print("LOSS", loss)
-        
+
         pass

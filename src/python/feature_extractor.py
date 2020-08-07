@@ -57,10 +57,10 @@ class FeatureExtractor(nn.Module):
             #         nn.AdaptiveMaxPool3d(
             #             tuple(self.cnnParams['out_sizes'][layer]))
             #         )
-            # setattr(self,
-            #         'dropOut3D_' + str(layer),
-            #         nn.Dropout3d(self.cnnParams['drop_out'])
-            #         )
+            setattr(self,
+                    'dropOut3D_' + str(layer),
+                    nn.Dropout3d(self.cnnParams['drop_out'])
+                    )
         self.activation = nn.ReLU()
 
     def forward(self, input_seq):
