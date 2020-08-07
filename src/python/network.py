@@ -112,8 +112,8 @@ class Network(nn.Module):
 
         # get pseudolabel
         pseudo_ground = out1.detach().clone()
-        if pseudo_ground[0] <= 0.5:
-            pseudo_ground[:] = 0
+        # if pseudo_ground[0] <= 0.5:
+        #     pseudo_ground[:] = 0
 
         # print('pseudo=-----', pseudo_ground)
 
