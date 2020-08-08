@@ -101,7 +101,7 @@ class Trainer():
         mask = mask.reshape(
             (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
         a = torch.zeros(4)
-        a[0] = 0.9
+        a[0] = 1
         a[1] = curr_track.centroid[2]
         a[2] = curr_track.centroid[0]
         a[3] = curr_track.centroid[1]
@@ -236,13 +236,6 @@ class Trainer():
 
         loss = self.run_batch(frame1, frame2, mask, label, 'train')
 
-        
-
-
-
-
-
-
         self.trainLossSum = self.trainLossSum + loss
 
         tqdm.write('Epoch: {}, batch: {}, loss: {}'.format(epoch_id,
@@ -362,7 +355,7 @@ if __name__ == "__main__":
         print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
         frame_tracks = trainer.tracks[1]
-        currTrack = frame_tracks[7]
+        currTrack = frame_tracks[11]
         mask, label = trainer.getMask(currTrack)
         frame1 = trainer.full_data[0, 1, 0, ...]
         frame2 = trainer.full_data[0, 1 + 1, 0, ...]
@@ -373,8 +366,10 @@ if __name__ == "__main__":
 
         # TODO: run all clusters through this
         with torch.no_grad():
+            start = time.time()
             loss, out1, out2, elapsed_time = trainer.forward(
                 frame1, frame2, mask, label)
-        print("LOSS", loss)
+            end = time.time()
+        print("LOSS ", loss, "TIME: ", end - start)
 
         pass
