@@ -66,7 +66,8 @@ class Network(nn.Module):
         self.fcOut = nn.Linear(8, 4)
 
         self.tanhshrink = nn.Tanhshrink()
-        
+        self.softsign = nn.Softsign()
+
         self.loss_calculator = Loss_Calculator(self.params)
 
     def forward(self, frame1, frame2, target, init_ground):
@@ -89,7 +90,7 @@ class Network(nn.Module):
         # forward frame1 to frame2
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
         H = self.fcIn(fullFeatures1)
-
+        
         H = H + targetFeatures
 
         H = torch.sigmoid(self.fc1(H))
@@ -105,7 +106,7 @@ class Network(nn.Module):
         confidence = H[0:1]
         coordinates = H[1:4]
         tuple_of_activated_parts = (
-            torch.sigmoid(confidence),
+            self.softsign(confidence),
             F.relu(coordinates)
         )
         out1 = torch.cat(tuple_of_activated_parts, dim=0)
@@ -142,7 +143,7 @@ class Network(nn.Module):
         confidence = H[0:1]
         coordinates = H[1:4]
         tuple_of_activated_parts = (
-            torch.sigmoid(confidence),
+             self.softsign(confidence),
             F.relu(coordinates)
         )
         out2 = torch.cat(tuple_of_activated_parts, dim=0)
