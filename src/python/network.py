@@ -114,12 +114,12 @@ class Network(nn.Module):
         # get pseudolabel
         pseudo_ground = out1.detach().clone()
         if pseudo_ground[0] <= self.params['confidence_thresh']:
-            pseudo_ground[1:4] = torch.tensor([13, 280, 512]).cuda()
+            pseudo_ground[1:4] = torch.tensor([13, 280, 512]).float().cuda()
 
         # calculate loss
         loss1 = self.loss_calculator(out1, init_ground, 'forward')
 
-        print('pseudo=-----', pseudo_ground)
+        # print('pseudo=-----', pseudo_ground)
 
         # backward frame2 to frame1
         fullFeatures2 = torch.cat([frame2Features, frame1Features], dim=0)
@@ -148,8 +148,8 @@ class Network(nn.Module):
         loss2 = self.loss_calculator(out2, init_ground, 'backward')
         # print('loss2', loss2)
 
-        tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
-            init_ground.detach(), out1.detach(), out2.detach()))
+        # tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
+        #     init_ground.detach(), out1.detach(), out2.detach()))
         
         # + 0.25 * loss1 + 0.25 * loss2
         lossTotal = loss1 + loss2 
