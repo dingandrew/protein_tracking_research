@@ -355,7 +355,7 @@ if __name__ == "__main__":
         print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
         frame_tracks = trainer.tracks[1]
-        currTrack = frame_tracks[11]
+        currTrack = frame_tracks[7]
         mask, label = trainer.getMask(currTrack)
         frame1 = trainer.full_data[0, 1, 0, ...]
         frame2 = trainer.full_data[0, 1 + 1, 0, ...]
