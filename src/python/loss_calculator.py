@@ -40,19 +40,19 @@ class Loss_Calculator(nn.Module):
                 if error_dist[0] < self.params['z_window']:
                     loss += 0
                 else:
-                    loss += 2 * self.mse(pred_coordinate[0], targ_coordinate[0])
+                    loss += self.mse(pred_coordinate[0], targ_coordinate[0])
               
 
                 if error_dist[1] < self.params['x_window']:
                     loss += 0
                 else:
-                    loss += 2 * self.mse(pred_coordinate[1], targ_coordinate[1])
+                    loss += self.mse(pred_coordinate[1], targ_coordinate[1])
                
 
                 if error_dist[2] < self.params['y_window']:
                     loss += 0
                 else:
-                    loss += 2 * self.mse(pred_coordinate[2], targ_coordinate[2])
+                    loss += self.mse(pred_coordinate[2], targ_coordinate[2])
         elif loss_type == 'backward':
             loss = self.mse(prediction, target)
 
