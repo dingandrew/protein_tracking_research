@@ -62,10 +62,10 @@
             ],
             "drop_out": 0.2
         },
-        "z_window": 1,
+        "z_window": 0.5,
         "x_window": 3,
         "y_window": 3,
-        "confidence_thresh" : 0.5,
+        "confidence_thresh" : 0.25,
         "epoch_num": 12000,
         "grad_clip": 5,
         "lr": 0.0005,

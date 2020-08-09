@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import time
+from random import random 
 from tqdm import tqdm
 from feature_extractor import FeatureExtractor
 from loss_calculator import Loss_Calculator
@@ -67,6 +68,7 @@ class Network(nn.Module):
 
         self.tanhshrink = nn.Tanhshrink()
         self.softsign = nn.Softsign()
+        self.sigmoid = nn.Sigmoid()
 
         self.loss_calculator = Loss_Calculator(self.params)
 
@@ -99,14 +101,14 @@ class Network(nn.Module):
     
         H = self.fc4(H)
         H = torch.sigmoid(self.fc5(H))
-        H = self.tanhshrink(self.fc6(H))
+        H = self.sigmoid(self.fc6(H))
         H = torch.cat([H, init_ground], dim=0)
         H = self.fcOut(H)
         # apply activations first index is confidence last three are coords
         confidence = H[0:1]
         coordinates = H[1:4]
         tuple_of_activated_parts = (
-            self.softsign(confidence),
+            self.sigmoid(confidence),
             F.relu(coordinates)
         )
         out1 = torch.cat(tuple_of_activated_parts, dim=0)
@@ -114,10 +116,13 @@ class Network(nn.Module):
         # print('loss1', loss1)
         # get pseudolabel
         pseudo_ground = out1.detach().clone()
-        if pseudo_ground[0] <= self.params['confidence_thresh']:
-            pseudo_ground[1:4] = torch.tensor([0, 0, 0]).float().cuda()
-        else:
-            pseudo_ground[1:4] = init_ground[1:4]
+        if pseudo_ground[0] < self.params['confidence_thresh']:
+            pseudo_ground[1:4] = torch.tensor([13, 280, 512]).float().cuda()
+        elif random() < self.params['cnn']['drop_out']:
+            pseudo_ground = torch.tensor([0, 0, 0, 0]).float().cuda()
+        # else:
+        # causes both to be the same
+        #     pseudo_ground[1:4] = init_ground[1:4]
 
         # calculate loss
         loss1 = self.loss_calculator(out1, init_ground, 'forward')
@@ -136,14 +141,14 @@ class Network(nn.Module):
         
         H = self.fc4(H)
         H = torch.sigmoid(self.fc5(H))
-        H = self.tanhshrink(self.fc6(H))
+        H = self.sigmoid(self.fc6(H))
         H = torch.cat([H, pseudo_ground], dim=0)
         H = self.fcOut(H)
         # apply activations first index is confidence last three are coords
         confidence = H[0:1]
         coordinates = H[1:4]
         tuple_of_activated_parts = (
-             self.softsign(confidence),
+            self.sigmoid(confidence),
             F.relu(coordinates)
         )
         out2 = torch.cat(tuple_of_activated_parts, dim=0)
@@ -151,11 +156,11 @@ class Network(nn.Module):
         loss2 = self.loss_calculator(out2, init_ground, 'backward')
         # print('loss2', loss2)
 
-        tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
-            init_ground.detach(), out1.detach(), out2.detach()))
+        tqdm.write('INIT: {} OUT1: {} OUT2: {}\n\tpseudo: {}'.format(
+            init_ground.detach(), out1.detach(), out2.detach(), pseudo_ground))
         
         # + 0.25 * loss1 + 0.25 * loss2
-        lossTotal = loss1 + loss2 
+        lossTotal = loss1 + 0.5 * loss2 
 
 
         return lossTotal, out1, out2

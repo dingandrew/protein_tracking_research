@@ -41,7 +41,7 @@ class Trainer():
                                           weight_decay=1e-6)
         self.mseLoss = nn.MSELoss().cuda()
         self.trainLossSum = 0
-        self.currSearchFrame = 1
+        self.currSearchFrame = 0
         # track the current example
         self.trainExample = 0
         self.testExample = 0
@@ -172,7 +172,7 @@ class Trainer():
                     frame1, frame2, mask, label)
             backward_time = 0
 
-        tqdm.write('Runtime: {}s'.format(forward_time + backward_time))
+        # tqdm.write('Runtime: {}s'.format(forward_time + backward_time))
         return loss.item()
 
     def run_train_epoch(self, epoch_id):
@@ -223,7 +223,7 @@ class Trainer():
         self.network.train()
 
         # get the clusters in this frame
-        frame_tracks = self.tracks[self.currSearchFrame]
+        frame_tracks = self.tracks[self.currSearchFrame + 1]
         currTrack = frame_tracks[self.trainExample]
         mask, label = self.getMask(currTrack)
         frame1 = self.full_data[0, self.currSearchFrame, 0, ...]
@@ -324,7 +324,7 @@ if __name__ == "__main__":
 
         for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
             # dynamically calculate the number of training examples
-            trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame)
+            trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame + 1)
 
             trainer.run_train2_epoch(epoch_id, testNum)
 
@@ -355,10 +355,10 @@ if __name__ == "__main__":
         print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
         frame_tracks = trainer.tracks[1]
-        currTrack = frame_tracks[7]
+        currTrack = frame_tracks[10]
         mask, label = trainer.getMask(currTrack)
-        frame1 = trainer.full_data[0, 1, 0, ...]
-        frame2 = trainer.full_data[0, 1 + 1, 0, ...]
+        frame1 = trainer.full_data[0, 0, 0, ...]
+        frame2 = trainer.full_data[0, 0 + 1, 0, ...]
         frame1 = frame1.reshape(
             (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
         frame2 = frame2.reshape(
