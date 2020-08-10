@@ -91,16 +91,16 @@ class Network(nn.Module):
 
         # forward frame1 to frame2
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
-        H = self.fcIn(fullFeatures1)
+        H = self.sigmoid(self.fcIn(fullFeatures1))
         
         H = H + targetFeatures
 
-        H = torch.sigmoid(self.fc1(H))
+        H = self.sigmoid(self.fc1(H))
         H = self.tanhshrink(self.fc2(H))
         # H = self.fc3(H)
     
         H = self.fc4(H)
-        H = torch.sigmoid(self.fc5(H))
+        H = self.tanhshrink(self.fc5(H))
         H = self.sigmoid(self.fc6(H))
         H = torch.cat([H, init_ground], dim=0)
         H = self.fcOut(H)
@@ -117,9 +117,9 @@ class Network(nn.Module):
         # get pseudolabel
         pseudo_ground = out1.detach().clone()
         if pseudo_ground[0] < self.params['confidence_thresh']:
-            pseudo_ground[1:4] = torch.tensor([13, 280, 512]).float().cuda()
-        elif random() < self.params['cnn']['drop_out']:
-            pseudo_ground = torch.tensor([0, 0, 0, 0]).float().cuda()
+            pseudo_ground[1:4] = torch.tensor([0, 0, 0]).float().cuda()
+        # elif random() < self.params['cnn']['drop_out']:
+        #     pseudo_ground = torch.tensor([0, 0, 0, 0]).float().cuda()
         # else:
         # causes both to be the same
         #     pseudo_ground[1:4] = init_ground[1:4]
@@ -131,16 +131,16 @@ class Network(nn.Module):
 
         # backward frame2 to frame1
         fullFeatures2 = torch.cat([frame2Features, frame1Features], dim=0)
-        H = self.fcIn(fullFeatures2)
+        H = self.sigmoid(self.fcIn(fullFeatures2))
 
         H = H + targetFeatures
 
-        H = torch.sigmoid(self.fc1(H))
+        H = self.sigmoid(self.fc1(H))
         H = self.tanhshrink(self.fc2(H))
         # H = self.fc3(H)
         
         H = self.fc4(H)
-        H = torch.sigmoid(self.fc5(H))
+        H = self.tanhshrink(self.fc5(H))
         H = self.sigmoid(self.fc6(H))
         H = torch.cat([H, pseudo_ground], dim=0)
         H = self.fcOut(H)

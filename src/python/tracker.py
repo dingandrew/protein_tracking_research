@@ -15,6 +15,7 @@ class Tracker:
     '''
         Naive implementation of tracking
     '''
+
     def __init__(self):
         frames = [f for f in range(1, 71)]
         self.tracks = {key: []
@@ -54,16 +55,24 @@ class Tracker:
                 locations = np.argwhere(timeSlice == clusterID)
 
                 if t == 1:
-                    newTrack = Track(locations, clusterID, calc_centroid(
-                        locations), 'active', 'init')
+                    newTrack = Track(locs=locations, 
+                                     id=clusterID, 
+                                     centroid=calc_centroid(locations), 
+                                     state='active', 
+                                     origin='init', 
+                                     conf=1)
                 else:
-                    newTrack = Track(
-                        locations, None, calc_centroid(locations), None, None)
+                    newTrack = Track(locs=locations, 
+                                     id=None, 
+                                     centroid=calc_centroid(locations), 
+                                     state=None, 
+                                     origin=None, 
+                                     conf=None)
 
                 self.tracks[t].append(copy.deepcopy(newTrack))
 
         print('Total tracks: ', len(self.tracks))
-        with open('../../data/tracks.pickle', 'wb') as f:
+        with open('../../data/tracks_deep.pickle', 'wb') as f:
             # Pickle the 'data' dictionary using the highest protocol available.
             pickle.dump(self.tracks, f, pickle.HIGHEST_PROTOCOL)
 
@@ -199,6 +208,6 @@ if __name__ == "__main__":
     print("----------- Label ID's of initial frame ------------")
     tracker.label_initial_frame()
     print("----------- Number of clusters in each frame ------------")
-    tracker.get_clusters_per_frame()
+    # tracker.get_clusters_per_frame()
     print("----------- Tracks clusters of all frames ------------")
-    tracker.id_clusters(pickled_data=True)
+    # tracker.id_clusters(pickled_data=True)

@@ -66,14 +66,14 @@
         "x_window": 3,
         "y_window": 3,
         "confidence_thresh" : 0.25,
-        "epoch_num": 12000,
+        "epoch_num": 8001,
         "grad_clip": 5,
-        "lr": 0.0005,
+        "lr": 0.00005,
         "lr_decay_factor": 1,
         "save_interval": 1000,
         "batch_size": 32,
         "train_log_interval": 100,
-        "train_test_ratio": 0.9,
+        "train_test_ratio": 0.85,
         "validate_interval": 100
     },
     "default1": {

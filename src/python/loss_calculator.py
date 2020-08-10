@@ -35,7 +35,7 @@ class Loss_Calculator(nn.Module):
             if pred_confidence < self.params['confidence_thresh']:
                 if pred_confidence == 0:
                     multiplyer = 10
-                elif pred_confidence < 0.2:
+                elif pred_confidence < 0.02:
                     multiplyer = 5
                 else:
                     multiplyer = 1

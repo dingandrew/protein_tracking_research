@@ -11,6 +11,7 @@ from loss_calculator import Loss_Calculator
 from network import Network
 from track import Track
 import matplotlib.pyplot as plt
+import random 
 
 # Parse arguments
 parser = argparse.ArgumentParser(
@@ -100,7 +101,7 @@ class Trainer():
         mask = mask.reshape(
             (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
         a = torch.zeros(4)
-        a[0] = 1
+        a[0] = random.uniform(0.9, 1)
         a[1] = curr_track.centroid[2]
         a[2] = curr_track.centroid[0]
         a[3] = curr_track.centroid[1]
@@ -383,4 +384,4 @@ if __name__ == "__main__":
             end = time.time()
         print("LOSS ", loss, "TIME: ", end - start)
 
-        pass
+        
