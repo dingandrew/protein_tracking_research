@@ -10,7 +10,7 @@ from feature_extractor import FeatureExtractor
 from loss_calculator import Loss_Calculator
 from network import Network
 from track import Track
-
+import matplotlib.pyplot as plt
 
 # Parse arguments
 parser = argparse.ArgumentParser(
@@ -44,7 +44,6 @@ class Trainer():
         self.currSearchFrame = 0
         # track the current example
         self.trainExample = 0
-        self.testExample = 0
         # need to call load_data
         self.full_data = None
         self.tracks = None
@@ -252,6 +251,8 @@ class Trainer():
         if self.params['validate_interval'] > 0 and epoch_id % self.params['validate_interval'] == 0:
             # run the newtwork on the test clusters
             val_loss_avg = self.run_test_epoch(frame_tracks, testNum)
+            self.benchmark['val_loss'].append(
+                (epoch_id, val_loss_avg))
             tqdm.write('\n\tValidation Loss Average: {}\n'.format(val_loss_avg))
             self.network.train()
 
@@ -347,6 +348,16 @@ if __name__ == "__main__":
         trainer.network.load_state_dict(savepoint['net_states'])
 
         benchmark = savepoint['benchmark']
+      
+
+        plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
+        plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
+        plt.legend()
+        plt.title('Training and Validation Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.show()
+
         print('Model is initialized from ',
               trainer.save_path + args.init_model)
 
@@ -355,7 +366,7 @@ if __name__ == "__main__":
         print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
         frame_tracks = trainer.tracks[1]
-        currTrack = frame_tracks[10]
+        currTrack = frame_tracks[11]
         mask, label = trainer.getMask(currTrack)
         frame1 = trainer.full_data[0, 0, 0, ...]
         frame2 = trainer.full_data[0, 0 + 1, 0, ...]

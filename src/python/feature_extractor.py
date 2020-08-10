@@ -92,7 +92,7 @@ class FeatureExtractor(nn.Module):
             # H = getattr(self, 'dropOut3D_' + str(layer))(H)
 
         # tqdm.write('conved: {}'.format(H.shape))
-        # H = self.activation(H)
+        H = self.activation(H)
 
         # tqdm.write('activated: {}'.format(H.shape))
         # showTensor(H[0, 0, ...])
