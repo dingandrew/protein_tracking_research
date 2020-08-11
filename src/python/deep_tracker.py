@@ -357,7 +357,7 @@ if __name__ == "__main__":
         plt.title('Training and Validation Loss')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        plt.show()
+        # plt.show()
 
         print('Model is initialized from ',
               trainer.save_path + args.init_model)
@@ -367,7 +367,7 @@ if __name__ == "__main__":
         print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
         frame_tracks = trainer.tracks[1]
-        currTrack = frame_tracks[4]
+        currTrack = frame_tracks[12]
         mask, label = trainer.getMask(currTrack)
         frame1 = trainer.full_data[0, 0, 0, ...]
         frame2 = trainer.full_data[0, 0 + 1, 0, ...]
