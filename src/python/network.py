@@ -91,16 +91,16 @@ class Network(nn.Module):
 
         # forward frame1 to frame2
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
-        H = self.sigmoid(self.fcIn(fullFeatures1))
+        H = self.fcIn(fullFeatures1)
         
         H = H + targetFeatures
 
         H = self.sigmoid(self.fc1(H))
-        H = self.tanhshrink(self.fc2(H))
+        H = self.fc2(H)
         # H = self.fc3(H)
     
         H = self.fc4(H)
-        H = self.tanhshrink(self.fc5(H))
+        H = self.fc5(H)
         H = self.sigmoid(self.fc6(H))
         H = torch.cat([H, init_ground], dim=0)
         H = self.fcOut(H)
@@ -131,16 +131,16 @@ class Network(nn.Module):
 
         # backward frame2 to frame1
         fullFeatures2 = torch.cat([frame2Features, frame1Features], dim=0)
-        H = self.sigmoid(self.fcIn(fullFeatures2))
+        H = self.fcIn(fullFeatures2)
 
         H = H + targetFeatures
 
         H = self.sigmoid(self.fc1(H))
-        H = self.tanhshrink(self.fc2(H))
+        H = self.fc2(H)
         # H = self.fc3(H)
         
         H = self.fc4(H)
-        H = self.tanhshrink(self.fc5(H))
+        H = self.fc5(H)
         H = self.sigmoid(self.fc6(H))
         H = torch.cat([H, pseudo_ground], dim=0)
         H = self.fcOut(H)
@@ -160,7 +160,7 @@ class Network(nn.Module):
             init_ground.detach(), out1.detach(), out2.detach(), pseudo_ground))
         
         # + 0.25 * loss1 + 0.25 * loss2
-        lossTotal = loss1 + 0.5 * loss2 
+        lossTotal = loss1 + 0.25 * loss2 
 
 
         return lossTotal, out1, out2
