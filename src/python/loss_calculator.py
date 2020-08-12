@@ -37,8 +37,8 @@ class Loss_Calculator(nn.Module):
                     multiplyer = 10
                 # elif pred_confidence < 0.02:
                 #     multiplyer = 5
-                # else:
-                #     multiplyer = 1
+                else:
+                    multiplyer = 1
 
                 loss = multiplyer * self.mse(pred_confidence,
                                              torch.tensor([self.params['confidence_thresh']]).float().cuda())
@@ -47,8 +47,8 @@ class Loss_Calculator(nn.Module):
                     multiplyer = 10
                 # elif pred_confidence > 0.99:
                 #     multiplyer = 5
-                # else:
-                #     multiplyer = 1
+                else:
+                    multiplyer = 1
 
                 # TODO: refactor this
 

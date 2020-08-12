@@ -52,16 +52,16 @@ class FeatureExtractor(nn.Module):
             #         nn.BatchNorm3d(
             #             num_features=self.cnnParams['conv_features'][layer+1])
             #         )
-            # setattr(self,
-            #         'maxPool3D_' + str(layer),
-            #         nn.AdaptiveMaxPool3d(
-            #             tuple(self.cnnParams['out_sizes'][layer]))
-            #         )
             setattr(self,
-                    'dropOut3D_' + str(layer),
-                    nn.Dropout3d(self.cnnParams['drop_out'])
+                    'maxPool3D_' + str(layer),
+                    nn.AdaptiveMaxPool3d(
+                        tuple(self.cnnParams['out_sizes'][layer]))
                     )
-        self.activation = nn.ReLU()
+            # setattr(self,
+            #         'dropOut3D_' + str(layer),
+            #         nn.Dropout3d(self.cnnParams['drop_out'])
+            #         )
+        self.activation = nn.Tanhshrink()
 
     def forward(self, input_seq):
         '''
@@ -86,22 +86,23 @@ class FeatureExtractor(nn.Module):
         H = input_seq
         for layer in range(0, self.layer_num - 1):
             H = getattr(self, 'cnn3D_' + str(layer))(H)
-            # tqdm.write('conved: {}'.format(H.shape))
+            # tqdm.write('\tconved {}: {}'.format(str(layer), H.shape))
             # H = getattr(self, 'batchNorm3D_' + str(layer))(H)
-            # H = getattr(self, 'maxPool3D_' + str(layer))(H)
+            H = getattr(self, 'maxPool3D_' + str(layer))(H)
             # H = getattr(self, 'dropOut3D_' + str(layer))(H)
-
-        # tqdm.write('conved: {}'.format(H.shape))
-        # H = self.activation(H)
-
+            # tqdm.write('\tpooled {}: {}'.format(str(layer), H.shape))
+            
+            H = self.activation(H)
+            H = 100 * H
+        
         # tqdm.write('activated: {}'.format(H.shape))
         # showTensor(H[0, 0, ...])
         # (batch * time_frame), z_filter, x_filter_size, y_filter_size, final output filters
-        H = H.permute(0, 2, 3, 4, 1)
+        # H = H.permute(0, 2, 3, 4, 1)
 
         # tqdm.write('permutes: {}'.format(H.shape))
 
-        H = H.reshape(6240)
-       
+        H = H.reshape(12480)
+        
         # tqdm.write('reshaped: {}'.format(H.shape))
         return H

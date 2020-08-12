@@ -10,7 +10,7 @@ from random import random
 from tqdm import tqdm
 from feature_extractor import FeatureExtractor
 from loss_calculator import Loss_Calculator
-
+from util import open_model_json, showTensor
 
 class Network(nn.Module):
     '''
@@ -54,9 +54,9 @@ class Network(nn.Module):
         # self.rnn = nn.RNN(input_size=4096, hidden_size=4, nonlinearity='tanh',
         #                   batch_first=True, num_layers=32, bidirectional=True)
 
-        self.fcIn = nn.Linear(12480, 6240)
+        self.fcIn = nn.Linear(24960, 12480)
         # add target features here
-        self.fc1 = nn.Linear(6240, 3120)
+        self.fc1 = nn.Linear(12480, 3120)
         self.fc2 = nn.Linear(3120, 780)
         # self.fc3 = nn.Linear(780, 6240)
         
@@ -89,6 +89,11 @@ class Network(nn.Module):
         frame2Features = self.frame_features(frame2)
         targetFeatures = self.frame_features(target)
 
+        # print('Frames feature', F.mse_loss(frame1Features, frame2Features))
+        # print('Raw frames', F.mse_loss(frame1, frame2))
+        # print('frame1 and targ', F.mse_loss(frame1Features, targetFeatures))
+        # print('frame2 and targ', F.mse_loss(frame2Features, targetFeatures))
+        # exit()
         # forward frame1 to frame2
         fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
         H = self.fcIn(fullFeatures1)
