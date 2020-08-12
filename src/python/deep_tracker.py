@@ -340,6 +340,10 @@ if __name__ == "__main__":
                 trainer.trainExample = 0
 
     elif args.train == 'predict':
+        ''' 
+            Will predict the tracking results of the first 2 frames 
+            and compare with the results of the naive tracker
+        '''
         if args.init_model == '':
             print('ERROR: Must specify initial model to predict with it')
             exit()
@@ -357,7 +361,7 @@ if __name__ == "__main__":
         plt.title('Training and Validation Loss')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        # plt.show()
+        plt.show()
 
         print('Model is initialized from ',
               trainer.save_path + args.init_model)
@@ -366,22 +370,36 @@ if __name__ == "__main__":
                          for param in trainer.network.parameters()])
         print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
+        # store the results
+        prediction = np.zeros((4,270))
+        print(prediction)
+        
         frame_tracks = trainer.tracks[1]
-        currTrack = frame_tracks[12]
-        mask, label = trainer.getMask(currTrack)
-        frame1 = trainer.full_data[0, 0, 0, ...]
-        frame2 = trainer.full_data[0, 0 + 1, 0, ...]
-        frame1 = frame1.reshape(
-            (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
-        frame2 = frame2.reshape(
-            (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
+        for cluster in range(0, len(frame_tracks)):
+            currTrack = frame_tracks[cluster]
+            mask, label = trainer.getMask(currTrack)
+            frame1 = trainer.full_data[0, 0, 0, ...]
+            frame2 = trainer.full_data[0, 0 + 1, 0, ...]
+            frame1 = frame1.reshape(
+                (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
+            frame2 = frame2.reshape(
+                (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
 
-        # TODO: run all clusters through this
-        with torch.no_grad():
-            start = time.time()
-            loss, out1, out2, elapsed_time = trainer.forward(
-                frame1, frame2, mask, label)
-            end = time.time()
-        print("LOSS ", loss, "TIME: ", end - start)
+            # TODO: run all clusters through this
+            with torch.no_grad():
+                start = time.time()
+                loss, out1, out2, elapsed_time = trainer.forward(
+                    frame1, frame2, mask, label)
+                end = time.time()
+            print("LOSS ", loss, "TIME: ", end - start)
+            prediction[0, cluster] = label[0]
+            prediction[1, cluster] = out1[0]
+
+        with open('../../data/prediction.npy', 'wb') as f:
+            np.save(f, prediction)
+
+
+
+
 
         

@@ -5,7 +5,7 @@ class Track:
         self.centroid = centroid
         self.state = state
         self.origin = origin
-        self.confidence = conf
+        # self.confidence = conf
 
     def __repr__(self):
-        return "\n<Track \nlocs:%s \nid:%s \ncentroid:%s \nstate:%s \norigin:%s \nconf:%s>" % (len(self.locs), self.id, self.centroid, self.state, self.origin, self.confidence)
+        return "\n<Track \nlocs:%s \nid:%s \ncentroid:%s \nstate:%s \norigin:%s \nconf:%s>" % (len(self.locs), self.id, self.centroid, self.state, self.origin, -1)

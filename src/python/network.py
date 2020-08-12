@@ -116,8 +116,8 @@ class Network(nn.Module):
         # print('loss1', loss1)
         # get pseudolabel
         pseudo_ground = out1.detach().clone()
-        if pseudo_ground[0] < self.params['confidence_thresh']:
-            pseudo_ground[1:4] = torch.tensor([0, 0, 0]).float().cuda()
+        # if pseudo_ground[0] < self.params['confidence_thresh']:
+        #     pseudo_ground[1:4] = torch.tensor([0, 0, 0]).float().cuda()
         # elif random() < self.params['cnn']['drop_out']:
         #     pseudo_ground = torch.tensor([0, 0, 0, 0]).float().cuda()
         # else:
