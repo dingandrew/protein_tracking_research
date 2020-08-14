@@ -63,6 +63,8 @@ class FeatureExtractor(nn.Module):
             #         )
         self.activation = nn.Tanhshrink()
 
+
+        
     def forward(self, input_seq):
         '''
             input shape: (batch, time_frame, depth, z, x, y)
@@ -85,15 +87,15 @@ class FeatureExtractor(nn.Module):
         # will have shape (batch * time_frame), final output filters, x_filter_size, y_filter_size
         H = input_seq
         for layer in range(0, self.layer_num - 1):
-            H = getattr(self, 'cnn3D_' + str(layer))(H)
+            # H = getattr(self, 'cnn3D_' + str(layer))(H)
             # tqdm.write('\tconved {}: {}'.format(str(layer), H.shape))
             # H = getattr(self, 'batchNorm3D_' + str(layer))(H)
             H = getattr(self, 'maxPool3D_' + str(layer))(H)
             # H = getattr(self, 'dropOut3D_' + str(layer))(H)
             # tqdm.write('\tpooled {}: {}'.format(str(layer), H.shape))
             
-            H = self.activation(H)
-            H = 100 * H
+            # H = self.activation(H)
+            # H = 100 * H
         
         # tqdm.write('activated: {}'.format(H.shape))
         # showTensor(H[0, 0, ...])
@@ -102,7 +104,7 @@ class FeatureExtractor(nn.Module):
 
         # tqdm.write('permutes: {}'.format(H.shape))
 
-        H = H.reshape(12480)
+        H = H.reshape(3120)
         
         # tqdm.write('reshaped: {}'.format(H.shape))
         return H
