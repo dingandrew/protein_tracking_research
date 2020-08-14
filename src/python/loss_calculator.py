@@ -41,7 +41,7 @@ class Loss_Calculator(nn.Module):
                     multiplyer = 1
 
                 loss = multiplyer * self.mse(pred_confidence,
-                                             torch.tensor([self.params['confidence_thresh']]).float().cuda())
+                                             torch.tensor([0]).float().cuda())
             else:
                 if pred_confidence == 1:
                     multiplyer = 10
@@ -51,7 +51,7 @@ class Loss_Calculator(nn.Module):
                     multiplyer = 1
 
                 # TODO: refactor this
-
+                loss += self.mse(pred_confidence, targ_confidence)
                 error_dist = torch.abs(pred_coordinate - targ_coordinate)
                 # print('fffff', error_dist, multiplyer)
                 if error_dist[0] < self.params['z_window']:
