@@ -64,10 +64,10 @@ class Network(nn.Module):
         self.fc5 = nn.Linear(100, 50)
         self.fc6 = nn.Linear(50, 4)
         # concatenate init_ground here
-        self.fcOut = nn.Linear(8, 4)
+        self.fcOut = nn.Linear(8, 5)
 
         self.tanhshrink = nn.Tanhshrink()
-        self.softsign = nn.Softsign()
+        self.softmax = nn.Softmax()
         self.sigmoid = nn.Sigmoid()
 
         self.loss_calculator = Loss_Calculator(self.params)
@@ -127,17 +127,18 @@ class Network(nn.Module):
         H = torch.cat([H, init_ground], dim=0)
         H = self.fcOut(H)
         # apply activations first index is confidence last three are coords
-        confidence = H[0:1]
-        coordinates = H[1:4]
+        confidence = H[0:2]
+        coordinates = H[2:5]
         tuple_of_activated_parts = (
-            self.sigmoid(confidence),
+            self.softmax(confidence),
             F.relu(coordinates)
         )
         out1 = torch.cat(tuple_of_activated_parts, dim=0)
         
         # print('loss1', loss1)
         # get pseudolabel
-        pseudo_ground = out1.detach().clone()
+        pseudo_ground = torch.tensor([max(confidence[0], confidence[1]), coordinates[0], coordinates[1], coordinates[2]]).float().cuda()
+
         # if pseudo_ground[0] < self.params['confidence_thresh']:
         #     pseudo_ground[1:4] = torch.tensor([0, 0, 0]).float().cuda()
         # elif random() < self.params['cnn']['drop_out']:
@@ -167,10 +168,10 @@ class Network(nn.Module):
         H = torch.cat([H, pseudo_ground], dim=0)
         H = self.fcOut(H)
         # apply activations first index is confidence last three are coords
-        confidence = H[0:1]
-        coordinates = H[1:4]
+        confidence = H[0:2]
+        coordinates = H[2:5]
         tuple_of_activated_parts = (
-            self.sigmoid(confidence),
+            self.softmax(confidence),
             F.relu(coordinates)
         )
         out2 = torch.cat(tuple_of_activated_parts, dim=0)

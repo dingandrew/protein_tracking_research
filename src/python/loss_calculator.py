@@ -21,7 +21,7 @@ class Loss_Calculator(nn.Module):
 
         # loss = self.mse(prediction[:,:, :4], actual)
         # return loss
-        pred_confidence = prediction[0:1]
+        pred_confidence = prediction[0:2]
         pred_coordinate = prediction[1:4]
 
         targ_confidence = target[0:1]
@@ -29,48 +29,29 @@ class Loss_Calculator(nn.Module):
 
         # print(pred_confidence, targ_confidence, loss_type)
 
+
+
+
         if loss_type == 'forward':
             loss = 0
+            
+            error_dist = torch.abs(pred_coordinate - targ_coordinate)
 
-            if pred_confidence < self.params['confidence_thresh']:
-                if pred_confidence == 0:
-                    multiplyer = 10
-                # elif pred_confidence < 0.02:
-                #     multiplyer = 5
-                else:
-                    multiplyer = 1
-
-                loss = multiplyer * self.mse(pred_confidence,
-                                             torch.tensor([0]).float().cuda())
+            if error_dist[0] < self.params['z_window']:
+                loss = self.mse(pred_confidence, torch.tensor([self.params['confidence_thresh'] * 0.9 , 1 - self.params['confidence_thresh']]).float().cuda())
             else:
-                if pred_confidence == 1:
-                    multiplyer = 10
-                # elif pred_confidence > 0.99:
-                #     multiplyer = 5
-                else:
-                    multiplyer = 1
+                loss = self.mse(pred_confidence, torch.tensor([ 1 - self.params['confidence_thresh'], self.params['confidence_thresh'] * 0.9]).float().cuda())
 
-                # TODO: refactor this
-                loss += self.mse(pred_confidence, targ_confidence)
-                error_dist = torch.abs(pred_coordinate - targ_coordinate)
-                # print('fffff', error_dist, multiplyer)
-                if error_dist[0] < self.params['z_window']:
-                    loss += 0
-                else:
-                    loss += multiplyer * \
-                        self.mse(pred_coordinate[0], targ_coordinate[0])
+            if error_dist[0] < self.params['x_window']:
+                loss = self.mse(pred_confidence, torch.tensor([self.params['confidence_thresh'] * 0.9 , 1 - self.params['confidence_thresh']]).float().cuda())
+            else:
+                loss = self.mse(pred_confidence, torch.tensor([ 1 - self.params['confidence_thresh'], self.params['confidence_thresh'] * 0.9]).float().cuda())
 
-                if error_dist[1] < self.params['x_window']:
-                    loss += 0
-                else:
-                    loss += multiplyer * \
-                        self.mse(pred_coordinate[1], targ_coordinate[1])
+            if error_dist[0] < self.params['y_window']:
+                loss = self.mse(pred_confidence, torch.tensor([self.params['confidence_thresh'] * 0.9 , 1 - self.params['confidence_thresh']]).float().cuda())
+            else:
+                loss = self.mse(pred_confidence, torch.tensor([ 1 - self.params['confidence_thresh'], self.params['confidence_thresh'] * 0.9]).float().cuda())
 
-                if error_dist[2] < self.params['y_window']:
-                    loss += 0
-                else:
-                    loss += multiplyer * \
-                        self.mse(pred_coordinate[2], targ_coordinate[2])
 
         elif loss_type == 'backward':
             loss = self.mse(pred_coordinate, targ_coordinate)
@@ -78,3 +59,68 @@ class Loss_Calculator(nn.Module):
         # loss = self.mse(prediction, target)
         # print('loss------------------', loss_type ,  loss)
         return loss
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        # if loss_type == 'forward':
+        #     loss = 0
+
+        #     if pred_confidence < self.params['confidence_thresh']:
+        #         if pred_confidence == 0:
+        #             multiplyer = 10
+        #         # elif pred_confidence < 0.02:
+        #         #     multiplyer = 5
+        #         else:
+        #             multiplyer = 1
+
+        #         loss = multiplyer * self.mse(pred_confidence,
+        #                                      torch.tensor([self.params['confidence_thresh']]).float().cuda())
+        #     else:
+        #         if pred_confidence == 1:
+        #             multiplyer = 1
+        #         # elif pred_confidence > 0.99:
+        #         #     multiplyer = 5
+        #         else:
+        #             multiplyer = 1
+
+        #         # TODO: refactor this
+        #         loss += self.mse(pred_confidence, targ_confidence)
+        #         error_dist = torch.abs(pred_coordinate - targ_coordinate)
+        #         # print('fffff', error_dist, multiplyer)
+        #         if error_dist[0] < self.params['z_window']:
+        #             loss += 0
+        #         else:
+        #             loss += multiplyer * \
+        #                 self.mse(pred_coordinate[0], targ_coordinate[0])
+
+        #         if error_dist[1] < self.params['x_window']:
+        #             loss += 0
+        #         else:
+        #             loss += multiplyer * \
+        #                 self.mse(pred_coordinate[1], targ_coordinate[1])
+
+        #         if error_dist[2] < self.params['y_window']:
+        #             loss += 0
+        #         else:
+        #             loss += multiplyer * \
+        #                 self.mse(pred_coordinate[2], targ_coordinate[2])
+
+        # elif loss_type == 'backward':
+        #     loss = self.mse(pred_coordinate, targ_coordinate)
+
+        # # loss = self.mse(prediction, target)
+        # # print('loss------------------', loss_type ,  loss)
+        # return loss
