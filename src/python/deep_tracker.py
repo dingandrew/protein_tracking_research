@@ -9,9 +9,10 @@ from util import open_model_json, showTensor
 from feature_extractor import FeatureExtractor
 from loss_calculator import Loss_Calculator
 from network import Network
+from detector import Detector
 from track import Track
 import matplotlib.pyplot as plt
-import random 
+import random
 
 # Parse arguments
 parser = argparse.ArgumentParser(
@@ -19,7 +20,7 @@ parser = argparse.ArgumentParser(
 # Task
 parser.add_argument('--model_task', default='default',
                     help="Choose a model with different hyper-parameters (specified in 'modules/model_config.json')")
-parser.add_argument('--train', required=True, choices=['train', 'predict'],
+parser.add_argument('--train', required=True, choices=['deep', 'detect', 'predict'],
                     help="Choose to train or predict with the model")
 parser.add_argument('--init_model', default='',
                     help="Recover training from a checkpoint, e.g., 'latest.pt', '3000.pt'")
@@ -36,6 +37,7 @@ class Trainer():
         self.params = params
         # init network and optimizer
         self.network = Network(self.params).cuda()
+        self.detector = Detector(self.params).cuda()
         self.optimizer = torch.optim.Adam(self.network.parameters(),
                                           lr=self.params['lr'],
                                           betas=(0.9, 0.99),
@@ -189,7 +191,8 @@ class Trainer():
         currTrack = frame_tracks[self.trainExample]
         mask = self.getMask(currTrack)
 
-        loss, _ = self.run_batch(self.full_data[0, 0:30, :, ...], mask, 'train')
+        loss, _ = self.run_batch(
+            self.full_data[0, 0:30, :, ...], mask, 'train')
 
         self.trainLossSum = self.trainLossSum + loss
 
@@ -289,8 +292,43 @@ class Trainer():
 
         return val_loss_sum / test_num
 
-    def run_prediction(self, frame_tracks, cluster_count):
-        pass
+    def predictor_features(self, epoch_id):
+
+        # get the clusters in this frame
+        frame_tracks = self.tracks[self.currSearchFrame + 1]
+        currTrack = frame_tracks[self.trainExample]
+        mask, label = self.getMask(currTrack)
+        frame1 = self.full_data[0, self.currSearchFrame, 0, ...]
+        frame2 = self.full_data[0, self.currSearchFrame + 1, 0, ...]
+        frame1 = frame1.reshape(
+            (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
+        frame2 = frame2.reshape(
+            (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
+        # print(frame1.shape, frame2.shape)
+
+        frame1_crop = self.crop_frame(frame1, label[1:], 50, 50)
+        frame2_crop = self.crop_frame(frame2, label[1:], 50, 50)
+        mask_crop = self.crop_frame(mask, label[1:], 50, 50)
+
+        f1_feature, f2_feature = self.detector(frame1_crop.cuda().float(),
+                               frame2_crop.cuda().float(), 
+                               mask_crop.cuda().float())
+
+        tqdm.write('Epoch: {}, batch: {}'.format(epoch_id,
+                                                 self.trainExample))
+        self.trainExample += 1
+        return f1_feature, f2_feature
+
+    def crop_frame(self, tensor, center, width, height):
+        '''
+            keep z stack but crop x and y
+        '''
+        x_max = int(center[1] + width if center[1] + width < 280 else 280)
+        x_min = int(center[1] - width if center[1] - width > 0 else 0)
+        y_max = int(center[2] + height if center[2] + height < 512 else 512)
+        y_min = int(center[2] - height if center[2] - height > 0 else 0)
+        # print(center, x_max, x_min, y_max, y_min)
+        return tensor[:, :, :, :, x_min:x_max, y_min:y_max]
 
 
 if __name__ == "__main__":
@@ -306,27 +344,13 @@ if __name__ == "__main__":
                       labled='../../data/raw3data.npy',
                       count='../../data/counts.json')
 
-    # print(trainer.getMask( trainer.tracks[3][3]))
-    # lc = Loss_Calculator()
-    # i = torch.randn(1, 70, 8, requires_grad=True)
-    # t = trainer.getMask(trainer.tracks[3][3])[0, 0, ...]
-    # print(i)
-    # print(t)
-    # loss = lc(i, t, 3 - 1)
-    # print('loss', loss)
-    # loss.backward()
-
-    # trainer.full_data.requires_grad=True
-    # print(trainer.full_data[0, 1, 0, ...])
-
-    # trainer.run_train2_epoch(0)
 
     # Run the trainer
-    if args.train == 'train':
-
+    if args.train == 'deep':
         for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
             # dynamically calculate the number of training examples
-            trainNum, testNum = trainer.calc_batches(trainer.currSearchFrame + 1)
+            trainNum, testNum = trainer.calc_batches(
+                trainer.currSearchFrame + 1)
 
             trainer.run_train2_epoch(epoch_id, testNum)
 
@@ -339,6 +363,41 @@ if __name__ == "__main__":
                 trainer.currSearchFrame = 0
                 trainer.trainExample = 0
 
+    elif args.train == 'detect':
+
+        f1 = np.empty((trainer.params['detect_num'], 7))
+        f2 = np.empty((trainer.params['detect_num'], 7))
+        for epoch_id in tqdm(range(0, trainer.params['detect_num'])):
+            # dynamically calculate the number of training examples
+            trainNum = trainer.counts[str(trainer.currSearchFrame + 1)]
+            f1_feature, f2_feature = trainer.predictor_features(epoch_id)
+            f1[epoch_id] = f1_feature.cpu().numpy()
+            f2[epoch_id] = f2_feature.cpu().numpy()
+
+            if trainer.trainExample == trainNum:
+                trainer.currSearchFrame += 1
+                trainer.trainExample = 0
+
+            # reset the current search frame if all clusters have been searched
+            if trainer.currSearchFrame == 69:
+                trainer.currSearchFrame = 0
+                trainer.trainExample = 0
+
+        with open('../../data/f1', 'wb') as f:
+            np.save(f, f1)
+        with open('../../data/f2', 'wb') as f:
+            np.save(f, f2)
+
+        # with open('../../data/f1', 'rb') as f:
+        #     f1 = np.load(f)
+        # with open('../../data/f2', 'rb') as f:
+        #     f2 = np.load(f)
+        # trainer.detector.plot_feat(f1, f2)
+
+        # result = trainer.detector.fit_kmeans()
+
+
+
     elif args.train == 'predict':
         ''' 
             Will predict the tracking results of the first 2 frames 
@@ -348,32 +407,31 @@ if __name__ == "__main__":
             print('ERROR: Must specify initial model to predict with it')
             exit()
 
-        savepoint = torch.load(trainer.save_path + args.init_model)
-        # print(savepoint['net_states'])
-        trainer.network.load_state_dict(savepoint['net_states'])
+        # savepoint = torch.load(trainer.save_path + args.init_model)
+        # # print(savepoint['net_states'])
+        # trainer.network.load_state_dict(savepoint['net_states'])
 
-        benchmark = savepoint['benchmark']
-      
+        # benchmark = savepoint['benchmark']
 
-        plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
-        plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
-        plt.legend()
-        plt.title('Training and Validation Loss')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.show()
+        # plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
+        # plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
+        # plt.legend()
+        # plt.title('Training and Validation Loss')
+        # plt.xlabel('Epoch')
+        # plt.ylabel('Loss')
+        # plt.show()
 
-        print('Model is initialized from ',
-              trainer.save_path + args.init_model)
+        # print('Model is initialized from ',
+        #       trainer.save_path + args.init_model)
 
-        param_num = sum([param.data.numel()
-                         for param in trainer.network.parameters()])
-        print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
+        # param_num = sum([param.data.numel()
+        #                  for param in trainer.network.parameters()])
+        # print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
         # store the results
-        prediction = np.zeros((4,270))
-        print(prediction)
-        
+        prediction = np.zeros((4, 270))
+        # print(prediction)
+
         frame_tracks = trainer.tracks[1]
         for cluster in range(0, len(frame_tracks)):
             currTrack = frame_tracks[cluster]
@@ -392,14 +450,8 @@ if __name__ == "__main__":
                     frame1, frame2, mask, label)
                 end = time.time()
             print("LOSS ", loss, "TIME: ", end - start)
-            prediction[0, cluster] = label[0]
-            prediction[1, cluster] = out1[0]
+            prediction[0, cluster] = out1[0]
+            prediction[1, cluster] = out2
 
         with open('../../data/prediction.npy', 'wb') as f:
             np.save(f, prediction)
-
-
-
-
-
-        

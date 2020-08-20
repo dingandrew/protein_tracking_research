@@ -137,7 +137,7 @@ class Network(nn.Module):
         
         # print('loss1', loss1)
         # get pseudolabel
-        pseudo_ground = torch.tensor([max(confidence[0], confidence[1]), coordinates[0], coordinates[1], coordinates[2]]).float().cuda()
+        pseudo_ground = torch.tensor([max(out1[0], out1[1]), coordinates[0], coordinates[1], coordinates[2]]).float().cuda()
 
         # if pseudo_ground[0] < self.params['confidence_thresh']:
         #     pseudo_ground[1:4] = torch.tensor([0, 0, 0]).float().cuda()

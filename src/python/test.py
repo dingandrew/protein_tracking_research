@@ -7,6 +7,7 @@ import json
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 
 class Tester:
     '''
@@ -73,15 +74,15 @@ class Tester:
         
         for frame in range(1, 3):
             for track in self.labeledTracks[frame]:
-                print(track.id)
+                # print(track.id)
                 if int(track.id) in clusters:
                     tracking[frame + 1, int(track.id) - 1] = 1
 
-        print(tracking)
+        # print(tracking)
 
         fig, ax = plt.subplots()
         fig.subplots_adjust(left=0.05, right=0.99)
-        im = ax.imshow(tracking)
+        im = ax.imshow(tracking, norm=colors.Normalize(vmin=0, vmax=1))
 
         # We want to show all ticks...
         ax.set_xticks(np.arange(len(clusters)))

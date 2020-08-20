@@ -3,8 +3,7 @@ import torch
 import numpy as np
 import time
 from tqdm import tqdm
-from util import showTensor
-
+from util import open_model_json, showTensor
 
 class FeatureExtractor(nn.Module):
     '''
@@ -108,3 +107,12 @@ class FeatureExtractor(nn.Module):
         
         # tqdm.write('reshaped: {}'.format(H.shape))
         return H
+
+
+if __name__ == "__main__":
+    model_config = open_model_json('./model_config.json')
+    model = FeatureExtractor(model_config['default'])
+    print(model)
+    param_num = sum([param.data.numel()
+                     for param in model.parameters()])
+    print('Parameter number: %.3f M' % (param_num / 1024 / 1024))

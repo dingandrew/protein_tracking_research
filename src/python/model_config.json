@@ -74,7 +74,8 @@
         "batch_size": 32,
         "train_log_interval": 100,
         "train_test_ratio": 0.85,
-        "validate_interval": 100
+        "validate_interval": 100,
+        "detect_num" : 19826
     },
     "default1": {
         "O": 4,
