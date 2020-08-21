@@ -1,4 +1,5 @@
 import argparse
+from os import path
 import numpy as np
 import torch
 import torch.nn as nn
@@ -20,8 +21,10 @@ parser = argparse.ArgumentParser(
 # Task
 parser.add_argument('--model_task', default='default',
                     help="Choose a model with different hyper-parameters (specified in 'modules/model_config.json')")
-parser.add_argument('--train', required=True, choices=['deep', 'detect', 'predict'],
+parser.add_argument('--task', required=True, choices=['train', 'predict'],
                     help="Choose to train or predict with the model")
+parser.add_argument('--type', required=True, choices=['deep', 'detect'],
+                    help="Choose whether to train the detector or NN")
 parser.add_argument('--init_model', default='',
                     help="Recover training from a checkpoint, e.g., 'latest.pt', '3000.pt'")
 args = parser.parse_args()
@@ -108,14 +111,6 @@ class Trainer():
         a[2] = curr_track.centroid[0]
         a[3] = curr_track.centroid[1]
         return mask, a
-
-        # a = torch.zeros((64, 1, 4))
-        # a[:, 0, 0] = 1
-        # a[:, 0, 1] = curr_track.centroid[2] / 13
-        # a[:, 0, 2] = curr_track.centroid[0] / 280
-        # a[:, 0, 3] = curr_track.centroid[1] / 512
-
-        # return a
 
     def forward(self, frame1, frame2, mask, label):
         '''
@@ -236,15 +231,25 @@ class Trainer():
         frame2 = frame2.reshape(
             (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
         # print(frame1.shape, frame2.shape)
+        frame1_crop = self.crop_frame(frame1, label[1:], 50, 50)
+        frame2_crop = self.crop_frame(frame2, label[1:], 50, 50)
+        mask_crop = self.crop_frame(mask, label[1:], 50, 50)
 
-        loss = self.run_batch(frame1, frame2, mask, label, 'train')
+        _, f2_feature = self.detector(frame1_crop.cuda().float(),
+                                      frame2_crop.cuda().float(),
+                                      mask_crop.cuda().float())
+        results = trainer.detector.predict(
+            f2_feature.cpu().numpy().reshape(1, -7))
 
-        self.trainLossSum = self.trainLossSum + loss
-
-        tqdm.write('Epoch: {}, batch: {}, loss: {}'.format(epoch_id,
-                                                           self.trainExample,
-                                                           loss))
-        self.trainExample += 1
+        if results == 2:
+            loss = self.run_batch(frame1, frame2, mask, label, 'train')
+            self.trainLossSum = self.trainLossSum + loss
+            tqdm.write('Deep Epoch: {}, batch: {}, loss: {}'.format(epoch_id,
+                                                                    self.trainExample,
+                                                                    loss))
+        else:
+            tqdm.write('Deep Epoch: {}, batch: {}, No Train Not in next frame'.format(epoch_id,
+                                                                                      self.trainExample))
 
         # record metrics every 100 epochs
         if self.params['train_log_interval'] > 0 and epoch_id % self.params['train_log_interval'] == 0:
@@ -272,6 +277,7 @@ class Trainer():
         self.network.eval()
         val_loss_sum = 0
         num_frame_tracks = len(frame_tracks)
+        actual_test_num = 0
 
         for testId in range(num_frame_tracks - 1, num_frame_tracks - test_num, -1):
             currTrack = frame_tracks[testId]
@@ -282,18 +288,24 @@ class Trainer():
                 (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
             frame2 = frame2.reshape(
                 (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
-            # print(frame1.shape, frame2.shape)
 
-            loss = self.run_batch(frame1, frame2, mask, label, 'val')
+            frame1_crop = self.crop_frame(frame1, label[1:], 50, 50)
+            frame2_crop = self.crop_frame(frame2, label[1:], 50, 50)
+            mask_crop = self.crop_frame(mask, label[1:], 50, 50)
 
-            val_loss_sum = val_loss_sum + loss
-            # tqdm.write('Validation {} / {}, loss = {}'.format
-            #            (num_frame_tracks - testId, test_num, loss))
+            _, f2_feature = self.detector(frame1_crop.cuda().float(),
+                                          frame2_crop.cuda().float(),
+                                          mask_crop.cuda().float())
+            results = trainer.detector.predict(
+                f2_feature.cpu().numpy().reshape(1, -7))
+            if results == 2:
+                loss = self.run_batch(frame1, frame2, mask, label, 'val')
+                actual_test_num += 1
+                val_loss_sum += loss
 
-        return val_loss_sum / test_num
+        return val_loss_sum / actual_test_num
 
     def predictor_features(self, epoch_id):
-
         # get the clusters in this frame
         frame_tracks = self.tracks[self.currSearchFrame + 1]
         currTrack = frame_tracks[self.trainExample]
@@ -311,12 +323,12 @@ class Trainer():
         mask_crop = self.crop_frame(mask, label[1:], 50, 50)
 
         f1_feature, f2_feature = self.detector(frame1_crop.cuda().float(),
-                               frame2_crop.cuda().float(), 
-                               mask_crop.cuda().float())
+                                               frame2_crop.cuda().float(),
+                                               mask_crop.cuda().float())
 
-        tqdm.write('Epoch: {}, batch: {}'.format(epoch_id,
-                                                 self.trainExample))
-        self.trainExample += 1
+        tqdm.write('Predictor Epoch: {}, batch: {}'.format(epoch_id,
+                                                           self.trainExample))
+
         return f1_feature, f2_feature
 
     def crop_frame(self, tensor, center, width, height):
@@ -344,114 +356,132 @@ if __name__ == "__main__":
                       labled='../../data/raw3data.npy',
                       count='../../data/counts.json')
 
-
     # Run the trainer
-    if args.train == 'deep':
-        for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
-            # dynamically calculate the number of training examples
-            trainNum, testNum = trainer.calc_batches(
-                trainer.currSearchFrame + 1)
+    if args.task == "train":
+        if args.type == 'deep':
+            # check detector has already been trained
+            if not path.exists('../../models/detector.pickle'):
+                print('ERROR: You must train the detector first')
+                print('\tpython3 deep_tracker.py --task train --type detect')
+                exit()
 
-            trainer.run_train2_epoch(epoch_id, testNum)
+            for epoch_id in tqdm(range(0, trainer.params['epoch_num'])):
+                # dynamically calculate the number of training examples
+                trainNum, testNum = trainer.calc_batches(
+                    trainer.currSearchFrame + 1)
 
-            if trainer.trainExample == trainNum:
-                trainer.currSearchFrame += 1
-                trainer.trainExample = 0
+                trainer.run_train2_epoch(epoch_id, testNum)
+                trainer.trainExample += 1
 
-            # reset the current search frame if all clusters have been searched
-            if trainer.currSearchFrame == 69:
-                trainer.currSearchFrame = 0
-                trainer.trainExample = 0
+                if trainer.trainExample == trainNum:
+                    trainer.currSearchFrame += 1
+                    trainer.trainExample = 0
 
-    elif args.train == 'detect':
+                # reset the current search frame if all clusters have been searched
+                if trainer.currSearchFrame == 69:
+                    trainer.currSearchFrame = 0
+                    trainer.trainExample = 0
 
-        f1 = np.empty((trainer.params['detect_num'], 7))
-        f2 = np.empty((trainer.params['detect_num'], 7))
-        for epoch_id in tqdm(range(0, trainer.params['detect_num'])):
-            # dynamically calculate the number of training examples
-            trainNum = trainer.counts[str(trainer.currSearchFrame + 1)]
-            f1_feature, f2_feature = trainer.predictor_features(epoch_id)
-            f1[epoch_id] = f1_feature.cpu().numpy()
-            f2[epoch_id] = f2_feature.cpu().numpy()
+        elif args.type == 'detect':
+            f1 = np.empty((trainer.params['detect_num'], 7))
+            f2 = np.empty((trainer.params['detect_num'], 7))
+            for epoch_id in tqdm(range(0, trainer.params['detect_num'])):
+                # dynamically calculate the number of training examples
+                trainNum = trainer.counts[str(trainer.currSearchFrame + 1)]
+                f1_feature, f2_feature = trainer.predictor_features(epoch_id)
+                trainer.trainExample += 1
+                f1[epoch_id] = f1_feature.cpu().numpy()
+                f2[epoch_id] = f2_feature.cpu().numpy()
 
-            if trainer.trainExample == trainNum:
-                trainer.currSearchFrame += 1
-                trainer.trainExample = 0
+                if trainer.trainExample == trainNum:
+                    trainer.currSearchFrame += 1
+                    trainer.trainExample = 0
 
-            # reset the current search frame if all clusters have been searched
-            if trainer.currSearchFrame == 69:
-                trainer.currSearchFrame = 0
-                trainer.trainExample = 0
+                # reset the current search frame if all clusters have been searched
+                if trainer.currSearchFrame == 69:
+                    trainer.currSearchFrame = 0
+                    trainer.trainExample = 0
 
-        with open('../../data/f1', 'wb') as f:
-            np.save(f, f1)
-        with open('../../data/f2', 'wb') as f:
-            np.save(f, f2)
+            with open('../../data/f1.npy', 'wb') as f:
+                np.save(f, f1)
+            with open('../../data/f2.npy', 'wb') as f:
+                np.save(f, f2)
 
-        # with open('../../data/f1', 'rb') as f:
-        #     f1 = np.load(f)
-        # with open('../../data/f2', 'rb') as f:
-        #     f2 = np.load(f)
-        # trainer.detector.plot_feat(f1, f2)
-
-        # result = trainer.detector.fit_kmeans()
-
-
-
-    elif args.train == 'predict':
+    elif args.task == 'predict':
         ''' 
             Will predict the tracking results of the first 2 frames 
             and compare with the results of the naive tracker
         '''
-        if args.init_model == '':
-            print('ERROR: Must specify initial model to predict with it')
-            exit()
+        if args.type == "deep":
+            if args.init_model == '':
+                print('ERROR: Must specify initial model to predict with it')
+                exit()
 
-        # savepoint = torch.load(trainer.save_path + args.init_model)
-        # # print(savepoint['net_states'])
-        # trainer.network.load_state_dict(savepoint['net_states'])
+            savepoint = torch.load(trainer.save_path + args.init_model)
+            # print(savepoint['net_states'])
+            trainer.network.load_state_dict(savepoint['net_states'])
 
-        # benchmark = savepoint['benchmark']
+            benchmark = savepoint['benchmark']
 
-        # plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
-        # plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
-        # plt.legend()
-        # plt.title('Training and Validation Loss')
-        # plt.xlabel('Epoch')
-        # plt.ylabel('Loss')
-        # plt.show()
+            plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
+            plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
+            plt.legend()
+            plt.title('Training and Validation Loss')
+            plt.xlabel('Epoch')
+            plt.ylabel('Loss')
+            plt.show()
 
-        # print('Model is initialized from ',
-        #       trainer.save_path + args.init_model)
+            print('Model is initialized from ',
+                  trainer.save_path + args.init_model)
 
-        # param_num = sum([param.data.numel()
-        #                  for param in trainer.network.parameters()])
-        # print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
+            param_num = sum([param.data.numel()
+                             for param in trainer.network.parameters()])
+            print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
-        # store the results
-        prediction = np.zeros((4, 270))
-        # print(prediction)
+            # store the results
+            prediction = np.zeros((4, 270))
+            # print(prediction)
 
-        frame_tracks = trainer.tracks[1]
-        for cluster in range(0, len(frame_tracks)):
-            currTrack = frame_tracks[cluster]
-            mask, label = trainer.getMask(currTrack)
-            frame1 = trainer.full_data[0, 0, 0, ...]
-            frame2 = trainer.full_data[0, 0 + 1, 0, ...]
-            frame1 = frame1.reshape(
-                (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
-            frame2 = frame2.reshape(
-                (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
+            frame_tracks = trainer.tracks[1]
+            for cluster in range(0, len(frame_tracks)):
+                currTrack = frame_tracks[cluster]
+                mask, label = trainer.getMask(currTrack)
+                frame1 = trainer.full_data[0, 0, 0, ...]
+                frame2 = trainer.full_data[0, 0 + 1, 0, ...]
+                frame1 = frame1.reshape(
+                    (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
+                frame2 = frame2.reshape(
+                    (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
 
-            # TODO: run all clusters through this
-            with torch.no_grad():
-                start = time.time()
-                loss, out1, out2, elapsed_time = trainer.forward(
-                    frame1, frame2, mask, label)
-                end = time.time()
-            print("LOSS ", loss, "TIME: ", end - start)
-            prediction[0, cluster] = out1[0]
-            prediction[1, cluster] = out2
+                # TODO: run all clusters through this
+                with torch.no_grad():
+                    start = time.time()
+                    loss, out1, out2, elapsed_time = trainer.forward(
+                        frame1, frame2, mask, label)
+                    end = time.time()
+                print("LOSS ", loss, "TIME: ", end - start)
+                prediction[0, cluster] = out1[0]
+                prediction[1, cluster] = out2
 
-        with open('../../data/prediction.npy', 'wb') as f:
-            np.save(f, prediction)
+            with open('../../data/prediction.npy', 'wb') as f:
+                np.save(f, prediction)
+        elif args.type == "detect":
+            # load the feature data
+            with open('../../data/f2', 'rb') as f:
+                f2 = np.load(f)
+
+            # predict if the cluster exists in the next frame
+            start = time.time()
+            results = trainer.detector.predict(f2[0:270, :])
+            print(results)
+            end = time.time()
+            print("Predict Time: ", end - start)
+
+            # store the results
+            prediction = np.zeros((4, 270))
+            for i, r in enumerate(results):
+                prediction[0, i] = 1
+                prediction[1, i] = 1 if r == 2 else 0
+
+            with open('../../data/prediction.npy', 'wb') as f:
+                np.save(f, prediction)

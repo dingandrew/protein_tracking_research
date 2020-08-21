@@ -130,7 +130,7 @@ class Network(nn.Module):
         confidence = H[0:2]
         coordinates = H[2:5]
         tuple_of_activated_parts = (
-            self.softmax(confidence),
+            self.sigmoid(confidence),
             F.relu(coordinates)
         )
         out1 = torch.cat(tuple_of_activated_parts, dim=0)
@@ -171,7 +171,7 @@ class Network(nn.Module):
         confidence = H[0:2]
         coordinates = H[2:5]
         tuple_of_activated_parts = (
-            self.softmax(confidence),
+            self.sigmoid(confidence),
             F.relu(coordinates)
         )
         out2 = torch.cat(tuple_of_activated_parts, dim=0)
@@ -179,11 +179,21 @@ class Network(nn.Module):
         loss2 = self.loss_calculator(out2, init_ground, 'backward')
         # print('loss2', loss2)
 
-        tqdm.write('INIT: {} OUT1: {} OUT2: {}\n\tpseudo: {}'.format(
-            init_ground.detach(), out1.detach(), out2.detach(), pseudo_ground))
+        # tqdm.write('INIT: {} OUT1: {} OUT2: {}\n\tpseudo: {}'.format(
+        #     init_ground.detach(), out1.detach(), out2.detach(), pseudo_ground))
         
         # + 0.25 * loss1 + 0.25 * loss2
         lossTotal = loss1 + 0.25 * loss2 
 
 
         return lossTotal, out1, out2
+
+
+if __name__ == "__main__":
+    # test
+    model_config = open_model_json('./model_config.json')
+    model = Network(model_config['default'])
+    print(model)
+    param_num = sum([param.data.numel()
+                     for param in model.parameters()])
+    print('Parameter number: %.3f ' % (param_num))

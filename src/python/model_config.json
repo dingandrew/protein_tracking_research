@@ -75,7 +75,7 @@
         "train_log_interval": 100,
         "train_test_ratio": 0.85,
         "validate_interval": 100,
-        "detect_num" : 19826
+        "detect_num" : 10000
     },
     "default1": {
         "O": 4,

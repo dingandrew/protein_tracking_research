@@ -63,15 +63,12 @@ class Tester:
 
     def compare_methods(self):
         methods = ["DEEP: F1", "DEEP: F2", "TRACK: F1", "TRACK: F2"]
-        clusters = [id for id in range(1, 41)]
-    
-        # tracking = np.random.rand(4, 40)
-
         with open('../../data/prediction.npy', 'rb') as f:
             tracking = np.load(f)
-            
-        tracking = tracking[:, 0:41]
-        
+
+        clusters = [id for id in range(1, 41)]
+        tracking = tracking[:, 0:40]
+
         for frame in range(1, 3):
             for track in self.labeledTracks[frame]:
                 # print(track.id)
@@ -97,7 +94,7 @@ class Tester:
 
         # Loop over data dimensions and create text annotations.
         for y in range(len(methods)):
-            for x in range(len(clusters) + 1):
+            for x in range(len(clusters) ):
                 text = ax.text(x, y, round(tracking[y, x], 3),
                             ha="center", va="center", color="w")
 

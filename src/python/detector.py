@@ -3,28 +3,26 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import numpy as np
+from tqdm import tqdm
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import KNeighborsClassifier
-from util import open_model_json, showTensor
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
+from sklearn.decomposition import KernelPCA
 import pickle
-
+from util import open_model_json, showTensor
+from collections import Counter
 
 class Detector(nn.Module):
     '''
-        End to end tracker on segmented input
-
+        Detect if the given cluster is in the next frame or not
     '''
-
     def __init__(self, params):
         '''
             See model_config.json for parameter values
-
-            Input: args, for the task to set up the network for
         '''
         super(Detector, self).__init__()
         self.params = params.copy()
+        self.predictor = None
+        self.classifier = None
 
     def forward(self, frame1, frame2, target):
         '''
@@ -42,7 +40,6 @@ class Detector(nn.Module):
         # self.graph_3d(frame1)
         # self.graph_3d(frame2)
         # self.graph_3d(target)
-
         f1 = frame1.view(-1,
                          frame1.size(2),
                          frame1.size(3),
@@ -56,7 +53,6 @@ class Detector(nn.Module):
         targ = target.view(target.size(3),
                            target.size(4),
                            target.size(5))  # Z , H, W
-
         # print(f2.shape, f1.shape, targ.shape)
 
         # (out_channels, in_channels, kZ, kH, kW)
@@ -66,8 +62,8 @@ class Detector(nn.Module):
 
         # create custom kernel filters by transforming target
         weights[0, ...] = targ  # original target mask
-        weights[1, ...] = torch.roll(targ, 
-                                     shifts=(0, 3, 0), 
+        weights[1, ...] = torch.roll(targ,
+                                     shifts=(0, 3, 0),
                                      dims=(0, 1, 2))  # roll x by 3
         weights[2, ...] = torch.roll(targ,
                                      shifts=(0, -3, 0),
@@ -92,60 +88,59 @@ class Detector(nn.Module):
 
         return f1_features, f2_features
 
-    def fit_kmeans(self, results):
-        pass
-        
+    def predict(self, feature):
+        # print(feature)
+        # load the model
+        if self.predictor is None or self.classifier is None:
+            with open('../../models/detector.pickle', 'rb') as f:
+                self.predictor = pickle.load(f)
+                tqdm.write('Loaded the trained predictor model')
+             
 
+            # init classifier
+            self.classifier = KNeighborsClassifier(
+                n_neighbors=len(np.unique(self.predictor['DBSCAN'].labels_)))
+            self.classifier.fit(self.predictor['DBSCAN'].components_,
+                                self.predictor['DBSCAN'].labels_[self.predictor['DBSCAN'].core_sample_indices_])
 
+        pca2 = self.predictor['PCA2']
+        p2 = pca2.transform(feature)
 
+        # print(p2)
+        predictions = self.classifier.predict(p2)
+        return predictions
 
-    def plot_feat(self, f1, f2):
+    def train_feat(self, f1, f2, graph=True):
         # need to reduce the dimesionality of the data
-        # and cluster the data
+        pca1 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
+        pca2 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
+        t1 = pca1.fit_transform(f1)
+        t2 = pca2.fit_transform(f2)
 
-        # with open('../../models/tsne1_init.pickle', 'rb') as f:
-        #     init1 = pickle.load(f)
-        # with open('../../models/tsne2_init.pickle', 'rb') as f:
-        #     init2 = pickle.load(f)
+        # data is now clustered f1 data should all be in one cluster
+        cluster_data = np.concatenate((t1, t2), axis=0)
 
-
-        # tsne1 = TSNE(n_components=2, init=init1)
-        # tsne2 = TSNE(n_components=2, init=init2)
-
-        tsne1 = TSNE(n_components=2, init='random')
-        tsne2 = TSNE(n_components=2, init='random')
-
-        t = tsne1.fit_transform(f1)
-        t2 = tsne2.fit_transform(f2)
-        
-        fig = plt.figure()
-        ax = fig.add_subplot()
-        ax.scatter(t[:, 0], t[:, 1], c='r')
-        ax.scatter(t2[:, 0], t2[:, 1])
-        plt.show()
-
-        # with open('../../models/tsne1_init.pickle', 'wb') as f:
-        #     # Pickle the 'data' dictionary using the highest protocol available.
-        #     pickle.dump(tsne1.embedding_, f, pickle.HIGHEST_PROTOCOL)
-
-        # with open('../../models/tsne2_init.pickle', 'wb') as f:
-        #     # Pickle the 'data' dictionary using the highest protocol available.
-        #     pickle.dump(tsne2.embedding_, f, pickle.HIGHEST_PROTOCOL)
-
-        
-        cluster_data = np.concatenate((t, t2), axis=0)
-
-        dbscan = DBSCAN(eps=1.5, min_samples=10)
-
+        # dbscan will label the clusters
+        dbscan = DBSCAN(eps=0.005, min_samples=10)
         dbscan.fit(cluster_data)
-        print(dbscan.labels_[:10])
-        print(dbscan.core_sample_indices_[:10])
-        print(dbscan.components_[:3])
-        print(np.unique(dbscan.labels_))
-        plt.figure()
-        plt.subplot()
-        self.plot_dbscan(dbscan, cluster_data, size=100)
-        plt.show()
+
+        if graph:
+            fig = plt.figure()
+            ax = fig.add_subplot()
+            ax.scatter(t1[:, 0], t1[:, 1], c='r')
+            ax.scatter(t2[:, 0], t2[:, 1], marker='x')
+            plt.show()
+            # print(dbscan.labels_[0:20])
+            # print(dbscan.core_sample_indices_[0:20] + 1)
+            # print(dbscan.labels_[10000:10020])
+            print('Labels: ', Counter(dbscan.labels_).keys())
+            print('Label Counts: ', Counter(dbscan.labels_).values())
+            self.plot_dbscan(dbscan, cluster_data, size=100)
+
+        # save the models
+        self.predictor = {'PCA1': pca1, 'PCA2': pca2, 'DBSCAN': dbscan}
+        with open('../../models/detector.pickle', 'wb') as f:
+            pickle.dump(self.predictor, f, pickle.HIGHEST_PROTOCOL)
 
     def plot_dbscan(self, dbscan, X, size, show_xlabels=True, show_ylabels=True):
         core_mask = np.zeros_like(dbscan.labels_, dtype=bool)
@@ -175,9 +170,7 @@ class Detector(nn.Module):
             plt.tick_params(labelleft=False)
         plt.title("eps={:.2f}, min_samples={}".format(
             dbscan.eps, dbscan.min_samples), fontsize=14)
-
-
-
+        plt.show()
 
     def graph_3d(self, f):
         fig = plt.figure()
