@@ -105,11 +105,10 @@ class Trainer():
             mask[index[2], index[0], index[1]] = 1
         mask = mask.reshape(
             (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
-        a = torch.zeros(4)
-        a[0] = random.uniform(0.8, 1)
-        a[1] = curr_track.centroid[2]
-        a[2] = curr_track.centroid[0]
-        a[3] = curr_track.centroid[1]
+        a = torch.zeros(3)
+        a[0] = curr_track.centroid[2]
+        a[1] = curr_track.centroid[0]
+        a[2] = curr_track.centroid[1]
         return mask, a
 
     def forward(self, frame1, frame2, mask, label):
@@ -231,9 +230,9 @@ class Trainer():
         frame2 = frame2.reshape(
             (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
         # print(frame1.shape, frame2.shape)
-        frame1_crop = self.crop_frame(frame1, label[1:], 50, 50)
-        frame2_crop = self.crop_frame(frame2, label[1:], 50, 50)
-        mask_crop = self.crop_frame(mask, label[1:], 50, 50)
+        frame1_crop = self.crop_frame(frame1, label, 50, 50)
+        frame2_crop = self.crop_frame(frame2, label, 50, 50)
+        mask_crop = self.crop_frame(mask, label, 50, 50)
 
         _, f2_feature = self.detector(frame1_crop.cuda().float(),
                                       frame2_crop.cuda().float(),
@@ -289,9 +288,9 @@ class Trainer():
             frame2 = frame2.reshape(
                 (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
 
-            frame1_crop = self.crop_frame(frame1, label[1:], 50, 50)
-            frame2_crop = self.crop_frame(frame2, label[1:], 50, 50)
-            mask_crop = self.crop_frame(mask, label[1:], 50, 50)
+            frame1_crop = self.crop_frame(frame1, label, 50, 50)
+            frame2_crop = self.crop_frame(frame2, label, 50, 50)
+            mask_crop = self.crop_frame(mask, label, 50, 50)
 
             _, f2_feature = self.detector(frame1_crop.cuda().float(),
                                           frame2_crop.cuda().float(),
@@ -318,9 +317,9 @@ class Trainer():
             (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
         # print(frame1.shape, frame2.shape)
 
-        frame1_crop = self.crop_frame(frame1, label[1:], 50, 50)
-        frame2_crop = self.crop_frame(frame2, label[1:], 50, 50)
-        mask_crop = self.crop_frame(mask, label[1:], 50, 50)
+        frame1_crop = self.crop_frame(frame1, label, 50, 50)
+        frame2_crop = self.crop_frame(frame2, label, 50, 50)
+        mask_crop = self.crop_frame(mask, label, 50, 50)
 
         f1_feature, f2_feature = self.detector(frame1_crop.cuda().float(),
                                                frame2_crop.cuda().float(),

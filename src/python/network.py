@@ -54,17 +54,14 @@ class Network(nn.Module):
         # self.rnn = nn.RNN(input_size=4096, hidden_size=4, nonlinearity='tanh',
         #                   batch_first=True, num_layers=32, bidirectional=True)
 
-        self.fcIn = nn.Linear(6240, 3120)
-        # add target features here
-        self.fc1 = nn.Linear(3120, 1560)
-        self.fc2 = nn.Linear(1560, 780)
-        # self.fc3 = nn.Linear(780, 6240)
-        
-        self.fc4 = nn.Linear(780, 100)
-        self.fc5 = nn.Linear(100, 50)
-        self.fc6 = nn.Linear(50, 4)
-        # concatenate init_ground here
-        self.fcOut = nn.Linear(8, 5)
+        self.fcIn = nn.Linear(4320, 3600)
+        self.fc1 = nn.Linear(3600, 500)
+        # self.fc2 = nn.Linear(780, 390)
+        # self.fc3 = nn.Linear(390, 195)
+        # self.fc4 = nn.Linear(780, 100)
+        # self.fc5 = nn.Linear(100, 50)
+        # self.fc6 = nn.Linear(50, 4)
+        self.fcOut = nn.Linear(500, 3)
 
         self.tanhshrink = nn.Tanhshrink()
         self.softmax = nn.Softmax()
@@ -89,103 +86,43 @@ class Network(nn.Module):
         frame2Features = self.frame_features(frame2)
         targetFeatures = self.frame_features(target)
 
-
-        # torch.set_printoptions(profile="full")
-        # print(targetFeatures)
-        # print(frame1Features)
-        # print(frame2Features)
-        # # print(torch.abs(frame1Features) - torch.abs(frame2Features))
-        
-        # # ff = torch.abs(frame1Features) - torch.abs(frame2Features)
-        # # ft1 = torch.abs(frame1Features) - torch.abs(targetFeatures)
-        # # ft2 = torch.abs(frame2Features) - torch.abs(targetFeatures)
-
-        # print(3120 - (targetFeatures == 0).sum(dim=0))
-        # print(3120 - (frame1Features == 0).sum(dim=0))
-        # print(3120 - (frame2Features == 0).sum(dim=0))
-
         # print('Frames feature', F.mse_loss(frame1Features, frame2Features))
         # print('Raw frames', F.mse_loss(frame1, frame2))
         # print('frame1 and targ', F.mse_loss(frame1Features, targetFeatures))
         # print('frame2 and targ', F.mse_loss(frame2Features, targetFeatures))
-
-
         # exit()
-        # forward frame1 to frame2
-        fullFeatures1 = torch.cat([frame1Features, frame2Features], dim=0)
+       
+
+        # target to frame1
+        fullFeatures1 = torch.cat([frame1Features, targetFeatures], dim=0)
         H = self.fcIn(fullFeatures1)
-        
-        H = H + targetFeatures
-
-        H = self.sigmoid(self.fc1(H))
-        H = self.fc2(H)
-        # H = self.fc3(H)
-    
-        H = self.fc4(H)
-        H = self.fc5(H)
-        H = self.sigmoid(self.fc6(H))
-        H = torch.cat([H, init_ground], dim=0)
-        H = self.fcOut(H)
-        # apply activations first index is confidence last three are coords
-        confidence = H[0:2]
-        coordinates = H[2:5]
-        tuple_of_activated_parts = (
-            self.sigmoid(confidence),
-            F.relu(coordinates)
-        )
-        out1 = torch.cat(tuple_of_activated_parts, dim=0)
-        
-        # print('loss1', loss1)
-        # get pseudolabel
-        pseudo_ground = torch.tensor([max(out1[0], out1[1]), coordinates[0], coordinates[1], coordinates[2]]).float().cuda()
-
-        # if pseudo_ground[0] < self.params['confidence_thresh']:
-        #     pseudo_ground[1:4] = torch.tensor([0, 0, 0]).float().cuda()
-        # elif random() < self.params['cnn']['drop_out']:
-        #     pseudo_ground = torch.tensor([0, 0, 0, 0]).float().cuda()
-        # else:
-        # causes both to be the same
-        #     pseudo_ground[1:4] = init_ground[1:4]
-
+        H = self.fc1(H)
+        # H = self.fc2(H)
+        # H = self.sigmoid(self.fc3(H))
+        # H = self.fc4(H)
+        # H = self.fc5(H)
+        # H = self.fc6(H)
+        out1 = F.relu(self.fcOut(H))
         # calculate loss
-        loss1 = self.loss_calculator(out1, init_ground, 'forward')
+        loss1 = self.loss_calculator(out1, init_ground, 'f1')
 
-        # print('pseudo=-----', pseudo_ground)
-
-        # backward frame2 to frame1
-        fullFeatures2 = torch.cat([frame2Features, frame1Features], dim=0)
+        # target to frame2
+        fullFeatures2 = torch.cat([frame2Features, targetFeatures], dim=0)
         H = self.fcIn(fullFeatures2)
-
-        H = H + targetFeatures
-
-        H = self.sigmoid(self.fc1(H))
-        H = self.fc2(H)
-        # H = self.fc3(H)
-        
-        H = self.fc4(H)
-        H = self.fc5(H)
-        H = self.sigmoid(self.fc6(H))
-        H = torch.cat([H, pseudo_ground], dim=0)
-        H = self.fcOut(H)
-        # apply activations first index is confidence last three are coords
-        confidence = H[0:2]
-        coordinates = H[2:5]
-        tuple_of_activated_parts = (
-            self.sigmoid(confidence),
-            F.relu(coordinates)
-        )
-        out2 = torch.cat(tuple_of_activated_parts, dim=0)
+        H = self.fc1(H)
+        # H = self.fc2(H)
+        # H = self.sigmoid(self.fc3(H))
+        # H = self.fc4(H)
+        # H = self.fc5(H)
+        # H = self.fc6(H)
+        out2 = F.relu(self.fcOut(H))
         # calculate loss
-        loss2 = self.loss_calculator(out2, init_ground, 'backward')
-        # print('loss2', loss2)
-
-        # tqdm.write('INIT: {} OUT1: {} OUT2: {}\n\tpseudo: {}'.format(
-        #     init_ground.detach(), out1.detach(), out2.detach(), pseudo_ground))
+        loss2 = self.loss_calculator(out2, init_ground, 'f2')
         
-        # + 0.25 * loss1 + 0.25 * loss2
-        lossTotal = loss1 + 0.25 * loss2 
-
-
+        tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
+            init_ground.detach(), out1.detach(), out2.detach()))
+        
+        lossTotal = 0.25 *  loss1 + loss2
         return lossTotal, out1, out2
 
 
@@ -196,4 +133,4 @@ if __name__ == "__main__":
     print(model)
     param_num = sum([param.data.numel()
                      for param in model.parameters()])
-    print('Parameter number: %.3f ' % (param_num))
+    print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
