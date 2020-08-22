@@ -406,6 +406,13 @@ if __name__ == "__main__":
             with open('../../data/f2.npy', 'wb') as f:
                 np.save(f, f2)
 
+            # with open('../../data/f1.npy', 'rb') as f:
+            #     f1 = np.load(f)
+            # with open('../../data/f2.npy', 'rb') as f:
+            #     f2 = np.load(f)
+
+            trainer.detector.train_feat(f1, f2)
+
     elif args.task == 'predict':
         ''' 
             Will predict the tracking results of the first 2 frames 
@@ -466,7 +473,7 @@ if __name__ == "__main__":
                 np.save(f, prediction)
         elif args.type == "detect":
             # load the feature data
-            with open('../../data/f2', 'rb') as f:
+            with open('../../data/f2.npy', 'rb') as f:
                 f2 = np.load(f)
 
             # predict if the cluster exists in the next frame
