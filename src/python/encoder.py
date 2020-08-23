@@ -52,6 +52,14 @@ class Encoder(nn.Module):
                         tuple(self.cnnParams['out_sizes'][layer]))
                     )
 
+        # init cnn weights to zero
+        for layer in range(0, self.layer_num - 1):
+            cnn = getattr(self, 'cnn3D_' + str(layer))
+            nn.init.zeros_(cnn.weight.data)
+            nn.init.zeros_(cnn.bias.data)
+
+        self.activation = nn.Sigmoid()
+
     def forward(self, input_seq):
         '''
             input shape: (batch, time_frame, depth, z, x, y)
@@ -78,7 +86,7 @@ class Encoder(nn.Module):
             H = getattr(self, 'maxPool3D_' + str(layer))(H)
             # tqdm.write('\tpooled {}: {}'.format(str(layer), H.shape))
             
-            # H = self.activation(H)
+            H = self.activation(H)
 
         
         # tqdm.write('activated: {}'.format(H.shape))

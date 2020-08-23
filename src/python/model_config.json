@@ -5,9 +5,9 @@
         "cnn": {
             "conv_features": [
                 1,
+                32,
                 64,
-                128,
-                256 
+                128 
             ],
             "conv_kernels": [
                 [
@@ -64,9 +64,9 @@
         },
         "decode-cnn": {
             "conv_features": [
-                256,
                 128,
                 64,
+                32,
                 1
             ],
             "conv_kernels": [
@@ -111,7 +111,7 @@
         "confidence_thresh" : 0.50,
         "epoch_num": 8001,
         "grad_clip": 5,
-        "lr": 0.0005,
+        "lr": 0.05,
         "lr_decay_factor": 1,
         "save_interval": 1000,
         "batch_size": 32,

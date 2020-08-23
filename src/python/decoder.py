@@ -30,9 +30,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.params = params.copy()
         self.cnnParams = self.params['decode-cnn']
-
         self.layer_num = len(self.cnnParams['conv_features'])
-       
 
         # create a feature extractor deep model
         for layer in range(0, self.layer_num - 1):
@@ -50,6 +48,14 @@ class Decoder(nn.Module):
                         num_features=self.cnnParams['conv_features'][layer+1])
                     )
 
+        # init cnn weights to zero
+        for layer in range(0, self.layer_num - 1):
+            cnn = getattr(self, 'cnn3D_' + str(layer))
+            nn.init.zeros_(cnn.weight.data)
+            nn.init.zeros_(cnn.bias.data)
+            
+        self.activation = nn.Sigmoid()
+
 
     def forward(self, input_seq):
         '''
@@ -66,9 +72,7 @@ class Decoder(nn.Module):
             # tqdm.write('\tDECODE conved {}: {}'.format(str(layer), H.shape))
             H = getattr(self, 'batchNorm3D_' + str(layer))(H)
             # tqdm.write('\tDECODE normed {}: {}'.format(str(layer), H.shape))
-
-
-            # H = self.activation(H)
+            H = self.activation(H)
 
         # H = H.reshape(2160)
 
