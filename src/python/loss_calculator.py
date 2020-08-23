@@ -12,7 +12,7 @@ class Loss_Calculator(nn.Module):
     def __init__(self, params):
         super(Loss_Calculator, self).__init__()
         self.params = params
-        self.mse = nn.MSELoss()
+        self.l1 = nn.L1Loss(reduction='sum')
 
     def forward(self, prediction, target):
         target = target.view(-1,
@@ -20,4 +20,4 @@ class Loss_Calculator(nn.Module):
                              target.size(3),
                              target.size(4),
                              target.size(5))  # (batch * time_frame), D, Z , H, W
-        return self.mse(prediction, target)
+        return self.l1(prediction, target)

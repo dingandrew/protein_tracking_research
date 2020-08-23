@@ -35,6 +35,8 @@ class Network(nn.Module):
         self.decoder = Decoder(self.params)
         self.loss_calculator = Loss_Calculator(self.params)
 
+        self.sigmoid = nn.Sigmoid()
+
     def forward(self, frame1, frame2, target, init_ground):
         '''
             1. input_seq -> fetaure_extractor => features
@@ -58,9 +60,10 @@ class Network(nn.Module):
         # print('Frames feature', F.mse_loss(frame1Features, frame2Features))
         # print('Raw frames', F.mse_loss(frame1, frame2))
 
-        f1 = self.decoder(frame1Features)
-        f2 = self.decoder(frame2Features)
-
+        f1 = self.sigmoid(self.decoder(self.sigmoid(frame1Features)))
+        f2 = self.sigmoid(self.decoder(self.sigmoid(frame2Features)))
+        # print(f1.shape, f2.shape)
+        # print(target)
         loss1 = self.loss_calculator(f1, target)
         loss2 = self.loss_calculator(f2, target) # num of points is equal to orig freame
 

@@ -444,32 +444,43 @@ if __name__ == "__main__":
             print('Parameter number: %.3f M' % (param_num / 1024 / 1024))
 
             # store the results
-            prediction = np.zeros((4, 270))
+            # prediction = np.zeros((4, 270))
             # print(prediction)
 
             frame_tracks = trainer.tracks[1]
-            for cluster in range(0, len(frame_tracks)):
-                currTrack = frame_tracks[cluster]
-                mask, label = trainer.getMask(currTrack)
-                frame1 = trainer.full_data[0, 0, 0, ...]
-                frame2 = trainer.full_data[0, 0 + 1, 0, ...]
-                frame1 = frame1.reshape(
-                    (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
-                frame2 = frame2.reshape(
-                    (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
+            # for cluster in range(0, len(frame_tracks)):
+            currTrack = frame_tracks[0]
+            mask, label = trainer.getMask(currTrack)
+            frame1 = trainer.full_data[0, 0, 0, ...]
+            frame2 = trainer.full_data[0, 0 + 1, 0, ...]
+            frame1 = frame1.reshape(
+                (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
+            frame2 = frame2.reshape(
+                (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
 
-                # TODO: run all clusters through this
-                with torch.no_grad():
-                    start = time.time()
-                    loss, out1, out2, elapsed_time = trainer.forward(
-                        frame1, frame2, mask, label)
-                    end = time.time()
+            # TODO: run all clusters through this
+            with torch.no_grad():
+                start = time.time()
+                loss, out1, out2, elapsed_time = trainer.forward(
+                    frame1, frame2, mask, label)
+                end = time.time()
+                def graph_3d( f):
+                    fig = plt.figure()
+                    ax = fig.add_subplot(111, projection='3d')
+                    z, x, y = f[0, 0, ...].cpu().numpy().nonzero()
+                    ax.set_xlim3d(0, 280)
+                    ax.set_ylim3d(0, 512)
+                    ax.set_zlim3d(0, 13)
+                    ax.scatter(x, y, z, zdir='z')
+                    plt.show()
+                print(out1)
+                print(out2)
                 print("LOSS ", loss, "TIME: ", end - start)
-                prediction[0, cluster] = out1[0]
-                prediction[1, cluster] = out2
+                # prediction[0, cluster] = out1[0]
+                # prediction[1, cluster] = out2
 
-            with open('../../data/prediction.npy', 'wb') as f:
-                np.save(f, prediction)
+            # with open('../../data/prediction.npy', 'wb') as f:
+            #     np.save(f, prediction)
         elif args.type == "detect":
             # load the feature data
             with open('../../data/f2.npy', 'rb') as f:
