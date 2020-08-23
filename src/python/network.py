@@ -6,32 +6,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import time
-from random import random 
+from random import random
 from tqdm import tqdm
-from feature_extractor import FeatureExtractor
+from encoder import Encoder
+from decoder import Decoder
 from loss_calculator import Loss_Calculator
 from util import open_model_json, showTensor
+
 
 class Network(nn.Module):
     '''
         End to end tracker on segmented input
-        1. Put frames through feature tracker
-
-        2. Feed feature frames and target cluster to RNN 
-
-        3. Use forwards/backwards loss, bidirectional RNN on each time_step going backwards to 
-           ensure we do not claim the cluster exists before its birth 
-
-        4. Find untracked clusters then track them using new unique ground truth IDs, 
-
-        5. Since we already know the location of object from segmentation we only
-           need to determine if the object exists in the next frame, RNN has  
-           OUTPUT_SHAPE = [batch, time_steps, 1], feature of channel 1 predicts whther or not
-           this id exixts in this frame
-
-        6. (Inference mode only) store the predictions results
-
-        7. Calculate loss and return 
 
         NOTE: all batch sizes are 1
     '''
@@ -48,25 +33,8 @@ class Network(nn.Module):
 
         # self.mask_feature = FeatureExtractor(self.params)
 
-        self.frame_features = FeatureExtractor(self.params)
-
-        # bi directional to get forwards and backwards predicions
-        # self.rnn = nn.RNN(input_size=4096, hidden_size=4, nonlinearity='tanh',
-        #                   batch_first=True, num_layers=32, bidirectional=True)
-
-        self.fcIn = nn.Linear(4320, 3600)
-        self.fc1 = nn.Linear(3600, 500)
-        # self.fc2 = nn.Linear(780, 390)
-        # self.fc3 = nn.Linear(390, 195)
-        # self.fc4 = nn.Linear(780, 100)
-        # self.fc5 = nn.Linear(100, 50)
-        # self.fc6 = nn.Linear(50, 4)
-        self.fcOut = nn.Linear(500, 3)
-
-        self.tanhshrink = nn.Tanhshrink()
-        self.softmax = nn.Softmax()
-        self.sigmoid = nn.Sigmoid()
-
+        self.encoder = Encoder(self.params)
+        self.decoder = Decoder(self.params)
         self.loss_calculator = Loss_Calculator(self.params)
 
     def forward(self, frame1, frame2, target, init_ground):
@@ -81,49 +49,32 @@ class Network(nn.Module):
                            it is h_0 
 
         '''
+        # mutate the target for frame1 to simulate it for a diff frame
+        mutated_target = self.mutate_target(target)
+
         # run cnn's on input
-        frame1Features = self.frame_features(frame1)
-        frame2Features = self.frame_features(frame2)
-        targetFeatures = self.frame_features(target)
+        frame1Features = self.encoder(frame1 + target)
+        frame2Features = self.encoder(frame2 + target)
 
-        # print('Frames feature', F.mse_loss(frame1Features, frame2Features))
-        # print('Raw frames', F.mse_loss(frame1, frame2))
-        # print('frame1 and targ', F.mse_loss(frame1Features, targetFeatures))
-        # print('frame2 and targ', F.mse_loss(frame2Features, targetFeatures))
-        # exit()
-       
+        print('Frames feature', F.mse_loss(frame1Features, frame2Features))
+        print('Raw frames', F.mse_loss(frame1, frame2))
 
-        # target to frame1
-        fullFeatures1 = torch.cat([frame1Features, targetFeatures], dim=0)
-        H = self.fcIn(fullFeatures1)
-        H = self.fc1(H)
-        # H = self.fc2(H)
-        # H = self.sigmoid(self.fc3(H))
-        # H = self.fc4(H)
-        # H = self.fc5(H)
-        # H = self.fc6(H)
-        out1 = F.relu(self.fcOut(H))
-        # calculate loss
-        loss1 = self.loss_calculator(out1, init_ground, 'f1')
+        f1 = self.decoder(frame1Features)
+        f2 = self.decoder(frame2Features)
 
-        # target to frame2
-        fullFeatures2 = torch.cat([frame2Features, targetFeatures], dim=0)
-        H = self.fcIn(fullFeatures2)
-        H = self.fc1(H)
-        # H = self.fc2(H)
-        # H = self.sigmoid(self.fc3(H))
-        # H = self.fc4(H)
-        # H = self.fc5(H)
-        # H = self.fc6(H)
-        out2 = F.relu(self.fcOut(H))
-        # calculate loss
-        loss2 = self.loss_calculator(out2, init_ground, 'f2')
-        
-        tqdm.write('INIT: {} OUT1: {} OUT2: {}'.format(
-            init_ground.detach(), out1.detach(), out2.detach()))
-        
-        lossTotal = 0.25 *  loss1 + loss2
-        return lossTotal, out1, out2
+        loss1 = self.loss_calculator(f1, target)
+
+        loss2 = self.loss_calculator(f2, target)
+
+        return loss1 + loss2, f1, f2
+
+
+    def mutate_target(self, target):
+        '''
+            Randomly shift, rotate, and zoom the target. 
+        '''
+
+
 
 
 if __name__ == "__main__":
