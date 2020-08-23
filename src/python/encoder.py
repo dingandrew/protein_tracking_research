@@ -66,17 +66,17 @@ class Encoder(nn.Module):
                                    input_seq.size(4),
                                    input_seq.size(5))  # (batch * time_frame), D, Z , H, W
 
-        tqdm.write('view: {}'.format(input_seq.shape))
+        # tqdm.write('view: {}'.format(input_seq.shape))
 
         # will have shape (batch * time_frame), final output filters, x_filter_size, y_filter_size
         H = input_seq
         for layer in range(0, self.layer_num - 1):
             H = getattr(self, 'cnn3D_' + str(layer))(H)
-            tqdm.write('\tconved {}: {}'.format(str(layer), H.shape))
+            # tqdm.write('\tconved {}: {}'.format(str(layer), H.shape))
             H = getattr(self, 'batchNorm3D_' + str(layer))(H)
-            tqdm.write('\tnormed {}: {}'.format(str(layer), H.shape))
+            # tqdm.write('\tnormed {}: {}'.format(str(layer), H.shape))
             H = getattr(self, 'maxPool3D_' + str(layer))(H)
-            tqdm.write('\tpooled {}: {}'.format(str(layer), H.shape))
+            # tqdm.write('\tpooled {}: {}'.format(str(layer), H.shape))
             
             # H = self.activation(H)
 
@@ -86,7 +86,7 @@ class Encoder(nn.Module):
 
         # H = H.reshape(2160)
         
-        tqdm.write('Out: {}'.format(H.shape))
+        # tqdm.write('Out: {}'.format(H.shape))
         return H
 
 

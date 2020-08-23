@@ -6,14 +6,13 @@ import torch.nn as nn
 import pickle
 import time
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import random
+
 from util import open_model_json, showTensor
-from feature_extractor import FeatureExtractor
-from loss_calculator import Loss_Calculator
 from network import Network
 from detector import Detector
 from track import Track
-import matplotlib.pyplot as plt
-import random
 
 # Parse arguments
 parser = argparse.ArgumentParser(

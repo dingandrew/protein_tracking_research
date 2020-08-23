@@ -17,8 +17,6 @@ from util import open_model_json, showTensor
 class Network(nn.Module):
     '''
         End to end tracker on segmented input
-
-        NOTE: all batch sizes are 1
     '''
 
     def __init__(self, params):
@@ -49,6 +47,7 @@ class Network(nn.Module):
                            it is h_0 
 
         '''
+        # print(frame1.shape, frame2.shape, target.shape)
         # mutate the target for frame1 to simulate it for a diff frame
         mutated_target = self.mutate_target(target)
 
@@ -56,15 +55,14 @@ class Network(nn.Module):
         frame1Features = self.encoder(frame1 + target)
         frame2Features = self.encoder(frame2 + target)
 
-        print('Frames feature', F.mse_loss(frame1Features, frame2Features))
-        print('Raw frames', F.mse_loss(frame1, frame2))
+        # print('Frames feature', F.mse_loss(frame1Features, frame2Features))
+        # print('Raw frames', F.mse_loss(frame1, frame2))
 
         f1 = self.decoder(frame1Features)
         f2 = self.decoder(frame2Features)
 
         loss1 = self.loss_calculator(f1, target)
-
-        loss2 = self.loss_calculator(f2, target)
+        loss2 = self.loss_calculator(f2, target) # num of points is equal to orig freame
 
         return loss1 + loss2, f1, f2
 
@@ -73,7 +71,7 @@ class Network(nn.Module):
         '''
             Randomly shift, rotate, and zoom the target. 
         '''
-
+        return None
 
 
 
