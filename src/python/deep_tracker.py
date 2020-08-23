@@ -101,7 +101,7 @@ class Trainer():
         '''
         mask = torch.zeros((13, 280, 512))
         for index in curr_track.locs:
-            mask[index[2], index[0], index[1]] = 1
+            mask[index[2], index[0], index[1]] = 6
         mask = mask.reshape(
             (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
         a = torch.zeros(3)
@@ -428,13 +428,13 @@ if __name__ == "__main__":
 
             benchmark = savepoint['benchmark']
 
-            plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
-            plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
-            plt.legend()
-            plt.title('Training and Validation Loss')
-            plt.xlabel('Epoch')
-            plt.ylabel('Loss')
-            plt.show()
+            # plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
+            # plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
+            # plt.legend()
+            # plt.title('Training and Validation Loss')
+            # plt.xlabel('Epoch')
+            # plt.ylabel('Loss')
+            # plt.show()
 
             print('Model is initialized from ',
                   trainer.save_path + args.init_model)
@@ -465,15 +465,19 @@ if __name__ == "__main__":
                     frame1, frame2, mask, label)
                 end = time.time()
                 def graph_3d( f):
+                    f = torch.where(f.cpu() < 1,  torch.tensor([0]), torch.tensor([1]))
+                    print(f)
                     fig = plt.figure()
                     ax = fig.add_subplot(111, projection='3d')
                     z, x, y = f[0, 0, ...].cpu().numpy().nonzero()
+                    print(z, x, y)
                     ax.set_xlim3d(0, 280)
                     ax.set_ylim3d(0, 512)
                     ax.set_zlim3d(0, 13)
                     ax.scatter(x, y, z, zdir='z')
                     plt.show()
-                print(out1)
+                graph_3d(out1)
+                print(torch.where(out1.cpu() < 0.5,  torch.tensor([0]), torch.tensor([1])))
                 print(out2)
                 print("LOSS ", loss, "TIME: ", end - start)
                 # prediction[0, cluster] = out1[0]

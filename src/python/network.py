@@ -60,8 +60,8 @@ class Network(nn.Module):
         # print('Frames feature', F.mse_loss(frame1Features, frame2Features))
         # print('Raw frames', F.mse_loss(frame1, frame2))
 
-        f1 = self.decoder(self.sigmoid(frame1Features))
-        f2 = self.decoder(self.sigmoid(frame2Features))
+        f1 = self.decoder(frame1Features)
+        f2 = self.decoder(frame2Features)
         # print(f1.shape, f2.shape)
         # print(target)
         loss1 = self.loss_calculator(f1, target)

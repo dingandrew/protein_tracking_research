@@ -46,11 +46,11 @@ class Encoder(nn.Module):
                     nn.BatchNorm3d(
                         num_features=self.cnnParams['conv_features'][layer+1])
                     )
-            setattr(self,
-                    'maxPool3D_' + str(layer),
-                    nn.AdaptiveMaxPool3d(
-                        tuple(self.cnnParams['out_sizes'][layer]))
-                    )
+            # setattr(self,
+            #         'maxPool3D_' + str(layer),
+            #         nn.AdaptiveMaxPool3d(
+            #             tuple(self.cnnParams['out_sizes'][layer]))
+            #         )
 
         # init cnn weights to zero
         for layer in range(0, self.layer_num - 1):
@@ -83,7 +83,7 @@ class Encoder(nn.Module):
             # tqdm.write('\tconved {}: {}'.format(str(layer), H.shape))
             H = getattr(self, 'batchNorm3D_' + str(layer))(H)
             # tqdm.write('\tnormed {}: {}'.format(str(layer), H.shape))
-            H = getattr(self, 'maxPool3D_' + str(layer))(H)
+            # H = getattr(self, 'maxPool3D_' + str(layer))(H)
             # tqdm.write('\tpooled {}: {}'.format(str(layer), H.shape))
             
             H = self.activation(H)
