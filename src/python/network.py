@@ -35,7 +35,7 @@ class Network(nn.Module):
         self.decoder = Decoder(self.params)
         self.loss_calculator = Loss_Calculator(self.params)
 
-        self.sigmoid = nn.Sigmoid()
+        self.sigmoid = nn.ReLU6()
 
     def forward(self, frame1, frame2, target, init_ground):
         '''
@@ -66,7 +66,7 @@ class Network(nn.Module):
         # print(target)
         loss1 = self.loss_calculator(f1, target)
         loss2 = self.loss_calculator(f2, target) # num of points is equal to orig freame
-
+        # exit()
         return loss1 + loss2, f1, f2
 
 

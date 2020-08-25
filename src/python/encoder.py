@@ -46,19 +46,19 @@ class Encoder(nn.Module):
                     nn.BatchNorm3d(
                         num_features=self.cnnParams['conv_features'][layer+1])
                     )
-            # setattr(self,
-            #         'maxPool3D_' + str(layer),
-            #         nn.AdaptiveMaxPool3d(
-            #             tuple(self.cnnParams['out_sizes'][layer]))
-            #         )
+            setattr(self,
+                    'maxPool3D_' + str(layer),
+                    nn.AdaptiveMaxPool3d(
+                        tuple(self.cnnParams['out_sizes'][layer]))
+                    )
 
         # init cnn weights to zero
-        for layer in range(0, self.layer_num - 1):
-            cnn = getattr(self, 'cnn3D_' + str(layer))
-            nn.init.zeros_(cnn.weight.data)
-            nn.init.zeros_(cnn.bias.data)
+        # for layer in range(0, self.layer_num - 1):
+        #     cnn = getattr(self, 'cnn3D_' + str(layer))
+        #     nn.init.zeros_(cnn.weight.data)
+        #     nn.init.zeros_(cnn.bias.data)
 
-        self.activation = nn.Sigmoid()
+        self.activation = nn.ReLU6()
 
     def forward(self, input_seq):
         '''

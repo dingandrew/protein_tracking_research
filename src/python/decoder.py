@@ -49,12 +49,12 @@ class Decoder(nn.Module):
                     )
 
         # init cnn weights to zero
-        for layer in range(0, self.layer_num - 1):
-            cnn = getattr(self, 'cnn3D_' + str(layer))
-            nn.init.zeros_(cnn.weight.data)
-            nn.init.zeros_(cnn.bias.data)
-            
-        self.activation = nn.Sigmoid()
+        # for layer in range(0, self.layer_num - 1):
+        #     cnn = getattr(self, 'cnn3D_' + str(layer))
+        #     nn.init.zeros_(cnn.weight.data)
+        #     nn.init.zeros_(cnn.bias.data)
+
+        self.activation = nn.ReLU6()
 
 
     def forward(self, input_seq):

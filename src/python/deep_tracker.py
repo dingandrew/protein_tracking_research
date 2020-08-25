@@ -9,7 +9,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import random
 
-from util import open_model_json, showTensor
+from util import open_model_json, save_as_json, showTensor, calc_euclidean_dist
 from network import Network
 from detector import Detector
 from track import Track
@@ -405,9 +405,9 @@ if __name__ == "__main__":
             with open('../../data/f2.npy', 'wb') as f:
                 np.save(f, f2)
 
-            # with open('../../data/f1.npy', 'rb') as f:
+            # with open('../../data/f1', 'rb') as f:
             #     f1 = np.load(f)
-            # with open('../../data/f2.npy', 'rb') as f:
+            # with open('../../data/f2', 'rb') as f:
             #     f2 = np.load(f)
 
             trainer.detector.train_feat(f1, f2)
@@ -417,6 +417,22 @@ if __name__ == "__main__":
             Will predict the tracking results of the first 2 frames 
             and compare with the results of the naive tracker
         '''
+
+        def has_intersection(cluster, search_frame):
+            '''
+                Check if given point clusters have any intersection
+
+                Return: list of indexes of tracks that intersect with the cluster
+            '''
+            intersections = []
+            for index, track in enumerate(search_frame):
+                if np.count_nonzero(cluster == track.locs) > 10:
+                    intersections.append(index)
+                # if len(np.intersect1d(cluster, track.locs)) > 0:
+                #     intersections.append(index)
+
+            return intersections
+        
         if args.type == "deep":
             if args.init_model == '':
                 print('ERROR: Must specify initial model to predict with it')
@@ -428,13 +444,13 @@ if __name__ == "__main__":
 
             benchmark = savepoint['benchmark']
 
-            # plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
-            # plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
-            # plt.legend()
-            # plt.title('Training and Validation Loss')
-            # plt.xlabel('Epoch')
-            # plt.ylabel('Loss')
-            # plt.show()
+            plt.plot(*zip(*benchmark['train_loss']), label='train_loss')
+            plt.plot(*zip(*benchmark['val_loss']), label='val_loss')
+            plt.legend()
+            plt.title('Training and Validation Loss')
+            plt.xlabel('Epoch')
+            plt.ylabel('Loss')
+            plt.show()
 
             print('Model is initialized from ',
                   trainer.save_path + args.init_model)
@@ -449,8 +465,9 @@ if __name__ == "__main__":
 
             frame_tracks = trainer.tracks[1]
             # for cluster in range(0, len(frame_tracks)):
-            currTrack = frame_tracks[0]
+            currTrack = frame_tracks[1]
             mask, label = trainer.getMask(currTrack)
+            print(label)
             frame1 = trainer.full_data[0, 0, 0, ...]
             frame2 = trainer.full_data[0, 0 + 1, 0, ...]
             frame1 = frame1.reshape(
@@ -465,8 +482,8 @@ if __name__ == "__main__":
                     frame1, frame2, mask, label)
                 end = time.time()
                 def graph_3d( f):
-                    f = torch.where(f.cpu() < 1,  torch.tensor([0]), torch.tensor([1]))
-                    print(f)
+                    # f = torch.where(f.cpu() < 1,  torch.tensor([0]), torch.tensor([1]))
+                    # print(f)
                     fig = plt.figure()
                     ax = fig.add_subplot(111, projection='3d')
                     z, x, y = f[0, 0, ...].cpu().numpy().nonzero()
@@ -476,8 +493,8 @@ if __name__ == "__main__":
                     ax.set_zlim3d(0, 13)
                     ax.scatter(x, y, z, zdir='z')
                     plt.show()
-                graph_3d(out1)
-                print(torch.where(out1.cpu() < 0.5,  torch.tensor([0]), torch.tensor([1])))
+                graph_3d(out2)
+                print(out1)
                 print(out2)
                 print("LOSS ", loss, "TIME: ", end - start)
                 # prediction[0, cluster] = out1[0]
@@ -487,21 +504,122 @@ if __name__ == "__main__":
             #     np.save(f, prediction)
         elif args.type == "detect":
             # load the feature data
-            with open('../../data/f2.npy', 'rb') as f:
-                f2 = np.load(f)
+            # with open('../../data/f2.npy', 'rb') as f:
+            #     f2 = np.load(f)
 
-            # predict if the cluster exists in the next frame
-            start = time.time()
-            results = trainer.detector.predict(f2[0:270, :])
-            print(results)
-            end = time.time()
-            print("Predict Time: ", end - start)
+            # # predict if the cluster exists in the next frame
+            # start = time.time()
+            # results = trainer.detector.predict(f2[0:270, :])
+            # print(results)
+            # end = time.time()
+            # print("Predict Time: ", end - start)
 
-            # store the results
-            prediction = np.zeros((4, 270))
-            for i, r in enumerate(results):
-                prediction[0, i] = 1
-                prediction[1, i] = 1 if r == 2 else 0
+            # # store the results
+            # prediction = np.zeros((4, 270))
+            # for i, r in enumerate(results):
+            #     prediction[0, i] = 1
+            #     prediction[1, i] = 1 if r == 2 else 0
 
-            with open('../../data/prediction.npy', 'wb') as f:
-                np.save(f, prediction)
+            # with open('../../data/prediction.npy', 'wb') as f:
+            #     np.save(f, prediction)
+
+            def graph_3d( f):
+                # f = torch.where(f.cpu() < 1,  torch.tensor([0]), torch.tensor([1]))
+                # print(f)
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+                z, x, y = f[0, 0, 0, ...].cpu().numpy().nonzero()
+                print(z, x, y)
+                ax.set_xlim3d(0, 280)
+                ax.set_ylim3d(0, 512)
+                ax.set_zlim3d(0, 13)
+                ax.scatter(x, y, z, zdir='z')
+                plt.show()
+            # retreive the largest id from first frame and increment this will be the next id
+            nextID = max(track.id for track in trainer.tracks[1]) + 1
+            # iterate through all frames , note we are checking next frame
+            for currFrame in tqdm(range(0, 69)):
+                # check all tracks in this frame
+                for currTrack in trainer.tracks[currFrame + 1]:
+                    # get current track info
+                    currId = currTrack.id
+                    currCentroid = currTrack.centroid
+                    currState = currTrack.state
+                    currOrigin = currTrack.origin
+                    currLocs = currTrack.locs
+                    # get the clusters in this frame
+                    mask, label = trainer.getMask(currTrack)
+                    # print(label)
+                    frame1 = trainer.full_data[0, currFrame, 0, ...]
+                    frame2 = trainer.full_data[0, currFrame + 1, 0, ...]
+                    frame1 = frame1.reshape(
+                        (1, 1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
+                    frame2 = frame2.reshape(
+                        (1, 1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
+                    # print(frame1.shape, frame2.shape)
+
+                    frame1_crop = trainer.crop_frame(frame1, label, 50, 50)
+                    frame2_crop = trainer.crop_frame(frame2, label, 50, 50)
+                    mask_crop = trainer.crop_frame(mask, label, 50, 50)
+                    # graph_3d(frame2_crop)
+                    f1_feature, f2_feature = trainer.detector(frame1_crop.cuda().float(),
+                                                        frame2_crop.cuda().float(),
+                                                        mask_crop.cuda().float())
+                    # print(f1_feature, f2_feature)
+                    # exit()
+                    if trainer.detector.predict(f2_feature.cpu().numpy().reshape(1, -7)) == 2:
+                        minDist = 999999
+                        minNode = None 
+                        for nextTrack in trainer.tracks[currFrame + 2]:
+
+                            if nextTrack.id is None:
+
+                                if calc_euclidean_dist(currCentroid, nextTrack.centroid, [1,1,1]) < minDist:
+                                   minNode = nextTrack
+                                   minDist = calc_euclidean_dist(
+                                       currCentroid, nextTrack.centroid, [1, 1, 1])
+                            elif nextTrack.id == currId:
+                                print("should never happen")
+                        
+                        if minNode:
+                            minNode.id = currId
+                            minNode.state = currState
+                            minNode.origin = currOrigin
+                    else:
+                        currTrack.state = 'dead'
+
+                        
+                # remaining unlabled clusters in next frame are all the result
+                # of birth, split, or merge
+                for nextTrack in trainer.tracks[currFrame + 2]:
+                    if nextTrack.id is None:
+                        intersections = has_intersection(nextTrack.locs, trainer.tracks[currFrame + 1])
+                        if len(intersections) == 1:
+                            # split, there is only one intersecting cluster from prev frame
+                            nextTrack.id = nextID
+                            nextID += 1
+                            nextTrack.state = 'active'
+                            nextTrack.origin = 'split from: ' + \
+                                str([trainer.tracks[currFrame + 1]
+                                    [indx].id for indx in intersections])
+                        elif len(intersections) > 1:
+                            # merge, there is more than one intersecting cluster from prev frame
+                            nextTrack.id = nextID
+                            nextID += 1
+                            nextTrack.state = 'active'
+                            nextTrack.origin = 'merge from: ' + \
+                                str([trainer.tracks[currFrame + 1]
+                                    [indx].id for indx in intersections])
+                        else:
+                            # this cluster is birthed in this frame
+                            nextTrack.id = nextID
+                            nextID += 1
+                            nextTrack.state = 'active'
+                            nextTrack.origin = 'birth'
+
+
+            with open('../../data/labeled_tracks1.pickle', 'wb') as f:
+                # Pickle the 'data' dictionary using the highest protocol available.
+                pickle.dump(trainer.tracks, f, pickle.HIGHEST_PROTOCOL)
+
+            save_as_json(trainer.tracks, 0, 0, 0)
