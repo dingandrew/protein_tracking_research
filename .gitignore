@@ -134,3 +134,21 @@ dmypy.json
 # data
 *.npy
 data/
+./env/lib/python3.8/site-packages/torch/lib/libtorch_cuda.so
+./env/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so
+./env/lib/python3.8/site-packages/tensorflow/python/_pywrap_tensorflow_internal.so
+./models/whyone.pt
+./models/8000.pt
+./models/best1.2.pt
+./models/best.pt
+./models/activater.pt
+./models/50best.pt
+./models/25best.pt
+./models/256001.pt
+./models/550.pt
+./data/tracks.json
+./data/tracks_frame.json
+./data/raw3data.npy
+./data/tracks11.json
+./data/tracks_frame11.json
+./data/labled3data.npy
