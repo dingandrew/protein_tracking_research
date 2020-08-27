@@ -24,7 +24,7 @@ class Detector(nn.Module):
         self.predictor = None
         self.classifier = None
 
-    def forward(self, frame1, frame2, target):
+    def forward(self, frame1, frame2, target, train=True):
         '''
             1. input_seq -> fetaure_extractor => features
             2. features -> RNN(bidrectional=true) => forwards and backwards predictions
@@ -80,10 +80,15 @@ class Detector(nn.Module):
         weights[6, ...] = torch.roll(targ,
                                      shifts=(-2, 0, 0),
                                      dims=(0, 1, 2))  # roll z by -2
-
-        f1_features = F.conv3d(input=f1, weight=weights)
+        
+        if train:
+            # only need these feature for fitting the detector
+            f1_features = F.conv3d(input=f1, weight=weights)
+            f1_features = torch.flatten(f1_features)
+        else:
+            f1_features = None 
+            
         f2_features = F.conv3d(input=f2, weight=weights)
-        f1_features = torch.flatten(f1_features)
         f2_features = torch.flatten(f2_features)
 
         return f1_features, f2_features

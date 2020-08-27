@@ -9,7 +9,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import random
 
-from util import open_model_json, save_as_json, showTensor, calc_euclidean_dist
+from util import open_model_json, save_as_json, showTensor, calc_euclidean_dist, has_intersection
 from network import Network
 from detector import Detector
 from track import Track
@@ -414,25 +414,9 @@ if __name__ == "__main__":
 
     elif args.task == 'predict':
         ''' 
-            Will predict the tracking results of the first 2 frames 
-            and compare with the results of the naive tracker
-        '''
-
-        def has_intersection(cluster, search_frame):
-            '''
-                Check if given point clusters have any intersection
-
-                Return: list of indexes of tracks that intersect with the cluster
-            '''
-            intersections = []
-            for index, track in enumerate(search_frame):
-                if np.count_nonzero(cluster == track.locs) > 10:
-                    intersections.append(index)
-                # if len(np.intersect1d(cluster, track.locs)) > 0:
-                #     intersections.append(index)
-
-            return intersections
-        
+            Will run the tracking algo on the entire dataset
+        ''' 
+               
         if args.type == "deep":
             if args.init_model == '':
                 print('ERROR: Must specify initial model to predict with it')
@@ -481,19 +465,7 @@ if __name__ == "__main__":
                 loss, out1, out2, elapsed_time = trainer.forward(
                     frame1, frame2, mask, label)
                 end = time.time()
-                def graph_3d( f):
-                    # f = torch.where(f.cpu() < 1,  torch.tensor([0]), torch.tensor([1]))
-                    # print(f)
-                    fig = plt.figure()
-                    ax = fig.add_subplot(111, projection='3d')
-                    z, x, y = f[0, 0, ...].cpu().numpy().nonzero()
-                    print(z, x, y)
-                    ax.set_xlim3d(0, 280)
-                    ax.set_ylim3d(0, 512)
-                    ax.set_zlim3d(0, 13)
-                    ax.scatter(x, y, z, zdir='z')
-                    plt.show()
-                graph_3d(out2)
+
                 print(out1)
                 print(out2)
                 print("LOSS ", loss, "TIME: ", end - start)
@@ -522,19 +494,7 @@ if __name__ == "__main__":
 
             # with open('../../data/prediction.npy', 'wb') as f:
             #     np.save(f, prediction)
-            
-            def graph_3d( f):
-                # f = torch.where(f.cpu() < 1,  torch.tensor([0]), torch.tensor([1]))
-                # print(f)
-                fig = plt.figure()
-                ax = fig.add_subplot(111, projection='3d')
-                z, x, y = f[0, 0, 0, ...].cpu().numpy().nonzero()
-                print(z, x, y)
-                ax.set_xlim3d(0, 280)
-                ax.set_ylim3d(0, 512)
-                ax.set_zlim3d(0, 13)
-                ax.scatter(x, y, z, zdir='z')
-                plt.show()
+            # exit()
             # retreive the largest id from first frame and increment this will be the next id
             nextID = max(track.id for track in trainer.tracks[1]) + 1
             # iterate through all frames , note we are checking next frame
@@ -561,31 +521,49 @@ if __name__ == "__main__":
                     frame1_crop = trainer.crop_frame(frame1, label, 50, 50)
                     frame2_crop = trainer.crop_frame(frame2, label, 50, 50)
                     mask_crop = trainer.crop_frame(mask, label, 50, 50)
-                    # graph_3d(frame2_crop)
+             
                     f1_feature, f2_feature = trainer.detector(frame1_crop.cuda().float(),
                                                         frame2_crop.cuda().float(),
                                                         mask_crop.cuda().float())
                     # print(f1_feature, f2_feature)
                     # exit()
                     if trainer.detector.predict(f2_feature.cpu().numpy().reshape(1, -7)) == 2:
+                        # this is tooo slow
+                        # TODO: refactor min centroid finder algo
                         minDist = 999999
-                        minNode = None 
+                        minTrack = None 
                         for nextTrack in trainer.tracks[currFrame + 2]:
 
                             if nextTrack.id is None:
 
                                 if calc_euclidean_dist(currCentroid, nextTrack.centroid, [1,1,1]) < minDist:
-                                   minNode = nextTrack
+                                   minTrack = nextTrack
                                    minDist = calc_euclidean_dist(
                                        currCentroid, nextTrack.centroid, [1, 1, 1])
                             elif nextTrack.id == currId:
                                 print("should never happen")
                         
-                        if minNode:
-                            minNode.id = currId
-                            minNode.state = currState
-                            minNode.origin = currOrigin
+                        if minTrack:
+                            # run the cluster backwards in time to ensure tracking
+                            mask, label = trainer.getMask(minTrack)
+                            frame1_crop = trainer.crop_frame(frame1, label, 50, 50)
+                            frame2_crop = trainer.crop_frame(frame2, label, 50, 50)
+                            mask_crop = trainer.crop_frame(mask, label, 50, 50)
+                            
+                            f1_feature, f2_feature = trainer.detector(frame2_crop.cuda().float(),
+                                                                      frame1_crop.cuda().float(),
+                                                                      mask_crop.cuda().float(), 
+                                                                      train=False)
+                            if trainer.detector.predict(f2_feature.cpu().numpy().reshape(1, -7)) == 2:
+                                tqdm.write('match')
+                                minTrack.id = currId
+                                minTrack.state = currState
+                                minTrack.origin = currOrigin
+                            else:
+                                tqdm.write('no reverse match')
+                                currTrack.state = 'dead'
                     else:
+                        tqdm.write('no forward match')
                         currTrack.state = 'dead'
 
                         
