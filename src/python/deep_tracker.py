@@ -405,9 +405,9 @@ if __name__ == "__main__":
             with open('../../data/f2.npy', 'wb') as f:
                 np.save(f, f2)
 
-            # with open('../../data/f1', 'rb') as f:
+            # with open('../../data/f1.npy', 'rb') as f:
             #     f1 = np.load(f)
-            # with open('../../data/f2', 'rb') as f:
+            # with open('../../data/f2.npy', 'rb') as f:
             #     f2 = np.load(f)
 
             trainer.detector.train_feat(f1, f2)
@@ -522,7 +522,7 @@ if __name__ == "__main__":
 
             # with open('../../data/prediction.npy', 'wb') as f:
             #     np.save(f, prediction)
-
+            
             def graph_3d( f):
                 # f = torch.where(f.cpu() < 1,  torch.tensor([0]), torch.tensor([1]))
                 # print(f)
