@@ -119,5 +119,11 @@
         "train_test_ratio": 0.85,
         "validate_interval": 100,
         "detect_num" : 10000
+    },
+    "sprites":{
+        "detect_num": 2000,
+        "H":128,
+        "W":128,
+        "T": 1920
     }
 }

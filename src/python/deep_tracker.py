@@ -101,7 +101,7 @@ class Trainer():
         '''
         mask = torch.zeros((13, 280, 512))
         for index in curr_track.locs:
-            mask[index[2], index[0], index[1]] = 6
+            mask[index[2], index[0], index[1]] = 1
         mask = mask.reshape(
             (1, 1, 1, mask.size(0), mask.size(1), mask.size(2)))
         a = torch.zeros(3)
@@ -405,10 +405,10 @@ if __name__ == "__main__":
             with open('../../data/f2.npy', 'wb') as f:
                 np.save(f, f2)
 
-            # with open('../../data/f1.npy', 'rb') as f:
-            #     f1 = np.load(f)
-            # with open('../../data/f2.npy', 'rb') as f:
-            #     f2 = np.load(f)
+            with open('../../data/f1.npy', 'rb') as f:
+                f1 = np.load(f)
+            with open('../../data/f2.npy', 'rb') as f:
+                f2 = np.load(f)
 
             trainer.detector.train_feat(f1, f2)
 
@@ -476,25 +476,25 @@ if __name__ == "__main__":
             #     np.save(f, prediction)
         elif args.type == "detect":
             # load the feature data
-            # with open('../../data/f2.npy', 'rb') as f:
-            #     f2 = np.load(f)
+            with open('../../data/f2.npy', 'rb') as f:
+                f2 = np.load(f)
 
-            # # predict if the cluster exists in the next frame
-            # start = time.time()
-            # results = trainer.detector.predict(f2[0:270, :])
-            # print(results)
-            # end = time.time()
-            # print("Predict Time: ", end - start)
+            # predict if the cluster exists in the next frame
+            start = time.time()
+            results = trainer.detector.predict(f2[0:270, :])
+            print(results)
+            end = time.time()
+            print("Predict Time: ", end - start)
 
-            # # store the results
-            # prediction = np.zeros((4, 270))
-            # for i, r in enumerate(results):
-            #     prediction[0, i] = 1
-            #     prediction[1, i] = 1 if r == 2 else 0
+            # store the results
+            prediction = np.zeros((4, 270))
+            for i, r in enumerate(results):
+                prediction[0, i] = 1
+                prediction[1, i] = 1 if r == 2 else 0
 
-            # with open('../../data/prediction.npy', 'wb') as f:
-            #     np.save(f, prediction)
-            # exit()
+            with open('../../data/prediction.npy', 'wb') as f:
+                np.save(f, prediction)
+           
             # retreive the largest id from first frame and increment this will be the next id
             nextID = max(track.id for track in trainer.tracks[1]) + 1
             # iterate through all frames , note we are checking next frame

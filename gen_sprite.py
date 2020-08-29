@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import sys
 sys.path.append("modules")
-import util
+import src.python.util as util
 
 
 parser = argparse.ArgumentParser()
@@ -21,10 +21,10 @@ N = 1
 T = 20
 H = 128
 W = 128
-D = 1
+D = 3
 h = 21
 w = 21
-num_objects = 3
+num_objects = 3 # only to have distint value for each channel
 frame_num = 2000 
 train_ratio = 0 if arg.metric == 1 else 0.96
 birth_prob = 0.5
@@ -38,7 +38,7 @@ eps = 1e-5
 
 txt_name = task + 'gt.txt'
 metric_dir = 'metric' if arg.metric == 1 else ''
-output_dir = path.join('data', task, 'pt', metric_dir)
+output_dir = path.join('./data/sprites-MOT', task, 'pt', metric_dir)
 output_input_dir = path.join(output_dir, 'input')
 output_gt_dir = path.join(output_dir, 'gt')
 if arg.v == 0:
@@ -47,15 +47,15 @@ if arg.v == 0:
 
 
 # color template
-color_num = 6
-# color_temp = torch.ByteTensor(color_num, 1, 1, D).zero_()
+color_num = 3
+color_temp = torch.ByteTensor(color_num, 1, 1, D).zero_()
 # for i in range(0, color_num):
 #     R = math.floor((i+1)/4) * 255
 #     G = math.floor(((i+1)%4)/2) * 255
 #     B = (i+1)%2 * 255
-#     color_temp[i, :, :, 2].fill_(R)
-#     color_temp[i, :, :, 1].fill_(G)
-#     color_temp[i, :, :, 0].fill_(B)
+color_temp[0, :, :, 2].fill_(255)
+color_temp[1, :, :, 1].fill_(255)
+color_temp[2, :, :, 0].fill_(255)
 
 # shape template
 shape_num = 4
@@ -111,7 +111,9 @@ def process_batch(states, batch_id):
     org_seq = torch.ByteTensor(T, H, W, D).zero_()
     # sample all the random variables
     unif = torch.rand(T, num_objects)
-    color_id = torch.rand(T, num_objects).mul_(color_num).floor_().long()
+    color_id = torch.ByteTensor(20, 3)
+    color_id[:, :] = torch.ByteTensor([0, 1, 2])
+
     shape_id = torch.rand(T, num_objects).mul_(shape_num).floor_().long()
     direction_id = torch.rand(T, num_objects).mul_(4).floor_().long() # [0, 3]
     position_id = torch.rand(T, num_objects, 2).mul_(H-2*m).add_(m).floor_().long() # [m, H-m-1]
@@ -129,8 +131,8 @@ def process_batch(states, batch_id):
                     scale = scales[t][o].item()
                     ratio = ratios[t][o].item()
                     h_, w_ = round(h * scale * ratio), round(w * scale / ratio)
-                    # color_patch = torch.ByteTensor(h_, w_, D).fill_(1) * color_temp[color]
-                    color_patch = torch.ByteTensor(h_, w_, D).fill_(oid)
+                    color_patch = torch.ByteTensor(h_, w_, D).fill_(1) * color_temp[color]
+                    # color_patch = torch.ByteTensor(h_, w_, D).fill_(oid)
                     shape_patch = util.imresize(shape_temp[shape], h_, w_)
                     # pose
                     direction = direction_id[t][o].item()

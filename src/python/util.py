@@ -85,18 +85,18 @@ def save_as_json(tracks, centroid_thresh, weights, inter_thresh):
             json_frame_format[currFrame].append({'id': track.id, 'locs': track.locs.tolist(),
                                                 'centroid': track.centroid, 'state': track.state, 'origin': track.origin})
 
-    with open('../../data/tracks1.json', 'w') as f:
+    with open('../../data/sprites_tracks1.json', 'w') as f:
         json.dump(json_data, f, indent=4)
-    with open('../../data/tracks_pretty1.json', 'w') as f:
+    with open('../../data/sprites_tracks_pretty1.json', 'w') as f:
         json.dump(json_pretty, f, indent=4)
-    with open('../../data/tracks_frame1.json', 'w') as f:
+    with open('../../data/sprites_tracks_frame1.json', 'w') as f:
         json.dump(json_frame_format, f, indent=4)
 
 def save_counts_json(counts):
     '''
         Save counts as json
     '''
-    with open('../../data/counts.json', 'w') as f:
+    with open('../../data/sprites-MOT/sprite/pt/counts.json', 'w') as f:
         json.dump(counts, f, indent=4)
 
 
@@ -117,16 +117,7 @@ def showTensor(aTensor):
     plt.show()
 
 
-def complex_mul(x, z):
-    out_real = x[..., 0] * z[..., 0] - x[..., 1] * z[..., 1]
-    out_imag = x[..., 0] * z[..., 1] + x[..., 1] * z[..., 0]
-    return torch.stack((out_real, out_imag), -1)
 
-
-def complex_mulconj(x, z):
-    out_real = x[..., 0] * z[..., 0] + x[..., 1] * z[..., 1]
-    out_imag = x[..., 1] * z[..., 0] - x[..., 0] * z[..., 1]
-    return torch.stack((out_real, out_imag), -1)
 
 def imshow(img, height=None, width=None, name='img', delay=1):
     # img: H * W * D
