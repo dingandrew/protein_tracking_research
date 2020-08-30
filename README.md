@@ -5,13 +5,21 @@ Research to track segmented 3d images of protein clusters.
 
 
 ### Results on Synthetic Sprites Dataset
+Raw Sprites Dataset | Labeled Sprites Dataset
+-------------------- | -----------------------
+![raw_sprites](./images/raw_sprites.gif) | ![labeled_sprites](./images/labeled_sprites.gif)
 
-![raw_sprites](./images/raw_sprites.gif) ![labeled_sprites](./images/labeled_sprites.gif)
+Full video in ./data
 
 ### Feature Embeddings Clustering
+Sprites Dataset 2D Distribution| Protein Dataset 2D Distribution
+-------------------- | -----------------------
+![Plot](./images/sprite_1.png) | ![Plot](./images/f2.png)
 
-![Plot](./images/f2.png) ![Plot](./images/dbscan1.png) 
-![Plot](./images/sprite_1.png) ![Plot](./images/sprite_2.png)
+Sprites Dataset Clustering | Protein Dataset Clustering
+-------------------- | -----------------------
+![Plot](./images/sprite_2.png) | ![Plot](./images/dbscan1.png) 
+
 ### Set Up Enviroment
 
 To set up python3 virtual env.
