@@ -131,9 +131,8 @@ dmypy.json
 # vscode
 .vscode/
 
-# data
-*.npy
-data/
+# data find . -size +100M | cat >> .gitignore
+data/*
 ./env/lib/python3.8/site-packages/torch/lib/libtorch_cuda.so
 ./env/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so
 ./env/lib/python3.8/site-packages/tensorflow/python/_pywrap_tensorflow_internal.so
@@ -150,5 +149,47 @@ data/
 ./data/tracks_frame.json
 ./data/raw3data.npy
 ./data/tracks11.json
+./data/tracks_frame11.json
+./data/labled3data.npy
+./env/lib/python3.8/site-packages/torch/lib/libtorch_cuda.so
+./env/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so
+./env/lib/python3.8/site-packages/tensorflow/python/_pywrap_tensorflow_internal.so
+./data/tracks.json
+./data/tracks_frame.json
+./data/tracks1.json
+./data/raw3data.npy
+./data/sprites-MOT/sprite/pt/full_train_c.npy
+./data/sprites-MOT/sprite/pt/full_train_c.pt
+./data/sprites-MOT/sprite/pt/full_train.npy
+./data/tracks11.json
+./data/tracks_frame1.json
+./data/tracks_frame11.json
+./data/labled3data.npy
+./env/lib/python3.8/site-packages/torch/lib/libtorch_cuda.so
+./env/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so
+./env/lib/python3.8/site-packages/tensorflow/python/_pywrap_tensorflow_internal.so
+./data/tracks.json
+./data/tracks_frame.json
+./data/tracks1.json
+./data/raw3data.npy
+./data/sprites-MOT/sprite/pt/full_train_c.npy
+./data/sprites-MOT/sprite/pt/full_train_c.pt
+./data/sprites-MOT/sprite/pt/full_train.npy
+./data/tracks11.json
+./data/tracks_frame1.json
+./data/tracks_frame11.json
+./data/labled3data.npy
+./env/lib/python3.8/site-packages/torch/lib/libtorch_cuda.so
+./env/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so
+./env/lib/python3.8/site-packages/tensorflow/python/_pywrap_tensorflow_internal.so
+./data/tracks.json
+./data/tracks_frame.json
+./data/tracks1.json
+./data/raw3data.npy
+./data/sprites-MOT/sprite/pt/full_train_c.npy
+./data/sprites-MOT/sprite/pt/full_train_c.pt
+./data/sprites-MOT/sprite/pt/full_train.npy
+./data/tracks11.json
+./data/tracks_frame1.json
 ./data/tracks_frame11.json
 ./data/labled3data.npy

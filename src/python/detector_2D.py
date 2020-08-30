@@ -63,16 +63,16 @@ class Detector(nn.Module):
         # create custom kernel filters by transforming target
         weights[0, ...] = targ  # original target mask
         weights[1, ...] = torch.roll(targ,
-                                     shifts=(5, 0),
+                                     shifts=(3, 0),
                                      dims=(0, 1))  # roll x by 3
         weights[2, ...] = torch.roll(targ,
-                                     shifts=(-5, 0),
+                                     shifts=(-3, 0),
                                      dims=(0, 1))  # roll x by -3
         weights[3, ...] = torch.roll(targ,
-                                     shifts=(0, 5),
+                                     shifts=(0, 3),
                                      dims=(0, 1))  # roll y by 3
         weights[4, ...] = torch.roll(targ,
-                                     shifts=(0, -5),
+                                     shifts=(0, -3),
                                      dims=(0, 1))  # roll y by -3
 
         if train:
