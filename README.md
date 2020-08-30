@@ -10,8 +10,7 @@ Research to track segmented 3d images of protein clusters.
 
 ### Feature Embeddings Clustering
 
-![Plot](./images/f1.png) ![Plot](./images/f2.png)
-![Plot](./images/f1f2.png)
+![Plot](./images/f2.png) ![Plot](./images/dbscan1.png) 
 ![Plot](./images/sprite_1.png) ![Plot](./images/sprite_2.png)
 ### Set Up Enviroment
 
