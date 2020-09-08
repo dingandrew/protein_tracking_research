@@ -3,44 +3,17 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
 import sys
-import pandas as pd
 import numpy as np
 
 # np.set_printoptions(threshold=sys.maxsize)
 
 base_dir = "./data/raw_data/Segmentation_and_result"
 
-
-def explore_data():
-    """
-        Some code to explore the data properties
-    """
-    file_path1 = os.path.join(base_dir, "1/Fullsize_1.nii")
-    file_path2 = os.path.join(base_dir, "1/Fullsize_label_1.nii")
-    file_path3 = os.path.join(base_dir, "1/Registration_1.nii")
-    file_path4 = os.path.join(base_dir, "1/Weights_1.nii")
-    file_path5 = os.path.join(base_dir, "1/1_3Dconnection2.fig")
-
-    data1 = nib.load(file_path1)
-    label = nib.load(file_path2)
-    reg = nib.load(file_path3)
-    weight = nib.load(file_path4)
-
-    # print(data1)
-
-    print("full: ", data1.shape)
-    print("label: ", label.shape)
-    print("registration: ", reg.shape)
-    print("weight: ", weight.shape)
-
-    # plt.figure()
-
-
 def create_dataset(path=base_dir):
     """
         Create the 3d data set containing the sementation results and unlabled images
-        Takes the raw *.nii format and convertes it into panda dataframes
-        output is indexed as (time slice, width, height, z-stack)
+        Takes the raw *.nii format and convertes it into numpy array
+        output is indexed as (width, height, z-stack, time slice)
 
         Input: path, to directery containing .nii files
 
@@ -136,6 +109,39 @@ def save_data(dataset, path):
     print('Saved')
 
 
+def extract_weights_from_nii(path=base_dir):
+    """
+        Takes the raw weights.nii format and convertes it into numpy array
+
+        Input: path, to directery containing .nii files
+
+        Outputs : saves the weights as numpy array(280, 512, 13, 64)
+    """
+
+    validData = ["Weights", ".nii"]
+
+    # enter sub-directory of time slices
+    for d in os.listdir(path):
+        data_path = os.path.join(path, d)
+
+        # get files from each time slice
+        for f in os.listdir(data_path):
+            ext = os.path.splitext(f)[1]
+            name = os.path.splitext(f)[0]
+
+            if ext.lower() not in validData:
+                continue
+
+            full_data_path = os.path.join(data_path, f)
+
+            if validData[0] in name:
+                print(full_data_path)
+                data_seg = nib.load(full_data_path)
+                print(data_seg.dataobj[...].shape, os.path.join(data_path, name))
+                np.save(os.path.join(data_path, name),
+                        data_seg.dataobj[...])
+            
+
 if __name__ == "__main__":
     print("--------Creating Data Set from raw data---------")
     labled3data, raw3data = create_dataset()
@@ -149,3 +155,6 @@ if __name__ == "__main__":
         print("Very bad")
     else:
         print("OK")
+    print("-------- Extracting the weights----------------------")
+    print("\tWill bottleneck disk")
+    extract_weights_from_nii()

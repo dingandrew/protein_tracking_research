@@ -1,99 +1,132 @@
 import matplotlib.pyplot as plt
+import numpy as np
+from tqdm import tqdm
+import math
+import pickle
+from collections import Counter
+
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-import numpy as np
-from tqdm import tqdm
+
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import KernelPCA
-import math
-import pickle
+
 from util import open_model_json, showTensor
-from collections import Counter
+
 
 class Detector(nn.Module):
     '''
         Detect if the given cluster is in the next frame or not
     '''
+
     def __init__(self, params):
         '''
             See model_config.json for parameter values
         '''
         super(Detector, self).__init__()
         self.params = params.copy()
+        #### Will be initialized only when predict is called ####
         self.predictor = None
         self.classifier = None
-        # self.gauss_kernel = self.get_gaussian_kernel()
+        #########################################################
 
-    def forward(self, frame1, frame2, target, train=True):
+    def forward(self, frame1, frame2, mask, train=True):
         '''
-            1. input_seq -> fetaure_extractor => features
-            2. features -> RNN(bidrectional=true) => forwards and backwards predictions
-            3. predictions -> loss_calculator => loss
-            4. return loss
-
-            Input: input_seq has shape [batch, time_step, depth, z, x, y]
-                   target, the object we are trying to track through time
-                           it is h_0 
-
+            Get the feature embeddings of the cluster on the frame
         '''
-        # print(frame2.shape, frame1.shape, target.shape)
+        # print(mask.shape, torch.nonzero(mask).shape)
+
         # self.graph_3d(frame1)
         # self.graph_3d(frame2)
-        # self.graph_3d(target)
-        f1 = frame1.view(-1,
-                         frame1.size(2),
-                         frame1.size(3),
-                         frame1.size(4),
-                         frame1.size(5))  # (batch * time_frame), D, Z , H, W
-        f2 = frame2.view(-1,
-                         frame2.size(2),
-                         frame2.size(3),
-                         frame2.size(4),
-                         frame2.size(5))  # (batch * time_frame), D, Z , H, W
-        targ = target.view(target.size(3),
-                           target.size(4),
-                           target.size(5))  # Z , H, W
-        # print(f2.shape, f1.shape, targ.shape)
+        # self.graph_3d(mask)
 
         # (out_channels, in_channels, kZ, kH, kW)
         # 5 filters with same shape as entire frame
-        weights = torch.empty(
-            (7, 1, target.size(3), target.size(4), target.size(5))).cuda()
+        weights = torch.empty((self.params['embedding_len'] * mask.size(0),
+                               mask.size(1),
+                               mask.size(2),
+                               mask.size(3),
+                               mask.size(4))).cuda()
 
-        # create custom kernel filters by transforming target
-        weights[0, ...] = targ  # original target mask
-        weights[1, ...] = torch.roll(targ,
-                                     shifts=(0, 3, 0),
-                                     dims=(0, 1, 2))  # roll x by 3
-        weights[2, ...] = torch.roll(targ,
-                                     shifts=(0, -3, 0),
-                                     dims=(0, 1, 2))  # roll x by -3
-        weights[3, ...] = torch.roll(targ,
-                                     shifts=(0, 0, 3),
-                                     dims=(0, 1, 2))  # roll y by 3
-        weights[4, ...] = torch.roll(targ,
-                                     shifts=(0, 0, -3),
-                                     dims=(0, 1, 2))  # roll y by -3
-        weights[5, ...] = torch.roll(targ,
-                                     shifts=(2, 0, 0),
-                                     dims=(0, 1, 2))  # roll z by 2
-        weights[6, ...] = torch.roll(targ,
-                                     shifts=(-2, 0, 0),
-                                     dims=(0, 1, 2))  # roll z by -2
-        
+        # create custom kernel filters by transforming each partial mask
+        start = 0
+        end = 0
+        mask_count = 0
+        while mask_count < mask.size(0):
+            end += self.params['embedding_len']
+            weights[start:end] = self.mutate_mask(mask[mask_count, ...])
+            start = end
+            mask_count += 1
+
+        # print(torch.unique(mask))
+        # frame1 = F.normalize(frame1)
+        # frame2 = F.normalize(frame2)
         if train:
             # only need these feature for fitting the detector
-            f1_features = F.conv3d(input=f1, weight=weights)
-            f1_features = torch.flatten(f1_features)
+            f1_features = F.conv3d(input=frame1, weight=weights)
+            f1_features = f1_features.reshape((mask.size(0), 
+                                               self.params['embedding_len']))
         else:
-            f1_features = None 
-            
-        f2_features = F.conv3d(input=f2, weight=weights)
-        f2_features = torch.flatten(f2_features)
+            f1_features = None
+
+        f2_features = F.conv3d(input=frame2, weight=weights)
+        f2_features = f2_features.reshape((mask.size(0),
+                                           self.params['embedding_len']))
         # print(f1_features, f2_features)
+        # exit()
         return f1_features, f2_features
+
+    def mutate_mask(self, mask):
+        '''
+            For now the mutated partial mask is just the partial mask
+            shifted in each direction/dimension by its own respective bodylength.
+
+            Input: mask, a single partial mask of size: 
+                   (mask_C, mask_Z, mask_X, mask_Y)
+
+            Return: mutated_mask of size: 
+                    (embedding_len, mask_C, mask_Z, mask_X, mask_Y)
+        '''
+        # find the indexes of all nonzero elements in tensor
+        locs = torch.nonzero(mask) 
+        # print(locs)
+        # find the delta, which is the range of each z,x,y dim,
+        # to shift the mask by it by its own body length
+        z_delta = (max(locs[:, 1]) - min(locs[:, 1])) + 1
+        x_delta = (max(locs[:, 2]) - min(locs[:, 2])) + 1
+        y_delta = (max(locs[:, 3]) - min(locs[:, 3])) + 1
+        
+        # create empty mask that will hold the shifted partial mask
+        mutated_mask = torch.empty((self.params['embedding_len'],
+                                    mask.size(0),
+                                    mask.size(1),
+                                    mask.size(2),
+                                    mask.size(3))).cuda()
+
+        # create custom kernel filters by transforming mask
+        mutated_mask[0, ...] = mask  # original mask mask
+        mutated_mask[1, ...] = torch.roll(mask,
+                                          shifts=(0, x_delta, 0),
+                                          dims=(1, 2, 3))  # roll x by x_delta
+        mutated_mask[2, ...] = torch.roll(mask,
+                                          shifts=(0, -x_delta, 0),
+                                          dims=(1, 2, 3))  # roll x by -x_delta
+        mutated_mask[3, ...] = torch.roll(mask,
+                                          shifts=(0, 0, y_delta),
+                                          dims=(1, 2, 3))  # roll y by y_delta
+        mutated_mask[4, ...] = torch.roll(mask,
+                                          shifts=(0, 0, -y_delta),
+                                          dims=(1, 2, 3))  # roll y by -y_delta
+        mutated_mask[5, ...] = torch.roll(mask,
+                                          shifts=(z_delta, 0, 0),
+                                          dims=(1, 2, 3))  # roll z by z_delta
+        mutated_mask[6, ...] = torch.roll(mask,
+                                          shifts=(-z_delta, 0, 0),
+                                          dims=(1, 2, 3))  # roll z by -z_delta
+        # exit()
+        return mutated_mask
 
     def predict(self, feature):
         # print(feature)
@@ -102,7 +135,6 @@ class Detector(nn.Module):
             with open('../../models/detector.pickle', 'rb') as f:
                 self.predictor = pickle.load(f)
                 tqdm.write('Loaded the trained predictor model')
-             
 
             # init classifier
             self.classifier = KNeighborsClassifier(
@@ -118,30 +150,31 @@ class Detector(nn.Module):
         return predictions
 
     def train_feat(self, f1, f2, graph=True):
+        midpt = len(f1)
+        print(midpt)
+        # data = np.concatenate((f1, f2), axis=0)
         # need to reduce the dimesionality of the data
         pca1 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
         pca2 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
         t1 = pca1.fit_transform(f1)
+        # t1 = pca1.fit_transform(data)
         t2 = pca2.fit_transform(f2)
 
         transformed_data = np.concatenate((t1, t2), axis=0)
-
+        # transformed_data = t1
         # dbscan will label the clusters
-        dbscan = DBSCAN(eps=0.005, min_samples=10)
+        dbscan = DBSCAN(eps=0.5, min_samples=10)
         dbscan.fit(transformed_data)
 
         if graph:
             fig = plt.figure()
             ax = fig.add_subplot()
-            f1_points = ax.scatter(transformed_data[:10000, 0],
-                                   transformed_data[:10000, 1], c='r')
-            f2_points = ax.scatter(transformed_data[10000:, 0], 
-                                   transformed_data[10000:, 1], marker='x')
+            f1_points = ax.scatter(transformed_data[:midpt, 0],
+                                   transformed_data[:midpt, 1], c='r')
+            f2_points = ax.scatter(transformed_data[midpt:, 0],
+                                   transformed_data[midpt:, 1], marker='x')
             plt.legend([f1_points, f2_points], ['Frame 1', 'Frame 2'])
             plt.show()
-            # print(dbscan.labels_[0:20])
-            # print(dbscan.core_sample_indices_[0:20] + 1)
-            # print(dbscan.labels_[10000:10020])
             print('Labels: ', Counter(dbscan.labels_).keys())
             print('Label Counts: ', Counter(dbscan.labels_).values())
             self.plot_dbscan(dbscan, transformed_data, size=100)
