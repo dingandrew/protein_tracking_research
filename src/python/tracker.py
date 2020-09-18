@@ -59,20 +59,20 @@ class Tracker:
                                      id=clusterID, 
                                      centroid=calc_centroid(locations), 
                                      state='active', 
-                                     origin='init', 
+                                     origin='init ', 
                                      conf=1)
                 else:
                     newTrack = Track(locs=locations, 
                                      id=None, 
                                      centroid=calc_centroid(locations), 
-                                     state=None, 
-                                     origin=None, 
+                                     state='', 
+                                     origin='', 
                                      conf=None)
 
                 self.tracks[t].append(copy.deepcopy(newTrack))
 
         print('Total tracks: ', len(self.tracks))
-        with open('../../data/tracks_deep.pickle', 'wb') as f:
+        with open('../../data/tracks_protein.pickle', 'wb') as f:
             # Pickle the 'data' dictionary using the highest protocol available.
             pickle.dump(self.tracks, f, pickle.HIGHEST_PROTOCOL)
 
@@ -206,8 +206,8 @@ if __name__ == "__main__":
     print("----------- Load labled data set ------------")
     tracker.load_data(labled="../../data/labled3data.npy")
     # print("----------- Label ID's of initial frame ------------")
-    # tracker.label_initial_frame()
-    print("----------- Number of clusters in each frame ------------")
-    tracker.get_clusters_per_frame()
+    tracker.label_initial_frame()
+    # print("----------- Number of clusters in each frame ------------")
+    # tracker.get_clusters_per_frame()
     # print("----------- Tracks clusters of all frames ------------")
     # tracker.id_clusters(pickled_data=True)

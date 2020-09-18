@@ -163,7 +163,7 @@ class Detector(nn.Module):
         transformed_data = np.concatenate((t1, t2), axis=0)
         # transformed_data = t1
         # dbscan will label the clusters
-        dbscan = DBSCAN(eps=0.5, min_samples=10)
+        dbscan = DBSCAN(eps=0.05, min_samples=10)
         dbscan.fit(transformed_data)
 
         if graph:
@@ -202,6 +202,9 @@ class Detector(nn.Module):
                     c="r", marker="x", s=100)
         plt.scatter(non_cores[:, 0], non_cores[:, 1],
                     c=dbscan.labels_[non_core_mask], marker=".")
+
+        # plt.legend()
+        
         if show_xlabels:
             plt.xlabel("$x_1$", fontsize=14)
         else:

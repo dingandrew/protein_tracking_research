@@ -5,7 +5,7 @@
         "Z": 13,
         "W": 280,
         "H": 512,
-        "detect_num": 5000,
+        "detect_num": 1000,
         "embedding_len": 7,
         "piece_size": 10,
         "pos_lbl" : 0,
