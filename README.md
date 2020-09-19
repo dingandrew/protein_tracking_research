@@ -16,11 +16,11 @@ Full video in ./data
 ### Feature Embeddings Clustering
 Sprites Dataset 2D Distribution| Protein Dataset 2D Distribution
 -------------------- | -----------------------
-![Plot](./images/sprite_1.png) | ![Plot](./images/f2.png)
+![Plot](./images/sprite_1.png) | ![Plot](./images/protein_1.png)
 
 Sprites Dataset Clustering | Protein Dataset Clustering
 -------------------- | -----------------------
-![Plot](./images/sprite_2.png) | ![Plot](./images/dbscan1.png) 
+![Plot](./images/sprite_2.png) | ![Plot](./images/protein_2.png) 
 
 ### Set Up Enviroment
 
