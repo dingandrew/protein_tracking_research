@@ -30,13 +30,14 @@ To set up python3 virtual env.
 
 /cell_tracking$ python3 -m venv env
 /cell_tracking$ source env/bin/activate
-/cell_tracking$ pip install -r requirements.txt 
+/cell_tracking$ pip3 install -r requirements.txt 
 
 ```
 
 ### Generate Usable Data
 
-This requires the original Segmentation_Results files from Yang.
+This requires the original segmentation results data, from the 2019 CVPR Multi-Object 
+Portion Tracking in 4D Fluorescence Microscopy Imagery with Deep Feature Maps paper.
 
 ```
 
@@ -64,6 +65,12 @@ is a list of every track in that frame.
 
 tracks_pretty.json: Json file where the key is the cluster id and the value
 is a list of all the frames that it appears in.
+
+
+### Tracking Results
+
+![Plot](./images/detection_rates.png)
+![Plot](./images/cluster_sizes.png)  
 
 
 ### Visualize Results
