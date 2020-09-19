@@ -110,45 +110,6 @@ def open_model_json(path):
     return params
 
 
-def showTensor(aTensor):
-    plt.figure()
-    plt.imshow(aTensor.detach().numpy())
-    plt.colorbar()
-    plt.show()
-
-
-
-
-def imshow(img, height=None, width=None, name='img', delay=1):
-    # img: H * W * D
-    if torch.is_tensor(img):
-        img = img.cpu().numpy()
-    h = img.shape[0] if height == None else height
-    w = img.shape[1] if width == None else width
-    cv.namedWindow(name, cv.WINDOW_NORMAL)
-    cv.resizeWindow(name, w, h)
-    cv.imshow(name, img)
-    cv.waitKey(delay)
-
-
-def imwrite(img, name='img'):
-    # img: H * W *
-    img = (img * 255).byte().cpu().numpy()
-    cv.imwrite(name + '.jpg', img)
-
-
-def imresize(img, height, width):
-    # img: H * W * D
-    is_torch = False
-    if torch.is_tensor(img):
-        img = img.cpu().numpy()
-        is_torch = True
-    img_resized = cv.resize(img, (width, height))
-    if is_torch:
-        img_resized = torch.from_numpy(img_resized)
-    return img_resized
-
-
 def save_json(data, filename):
     with open(filename, 'w') as f:
         json.dump(data, f)

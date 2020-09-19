@@ -1,3 +1,15 @@
+class Status:
+    # possible states
+    ACTIVE = 'active'
+    DEAD = 'dead'
+
+    # possible origins
+    INIT = 'init'
+    BIRTH = 'F:{}-birth '
+    SPLIT = 'F:{}-split from {} '
+    MERGE = 'F:{}-merge with {} '
+    MATCH = 'F:{}-match '
+
 class Track:
     def __init__(self, locs, id, centroid, state, origin, conf):
         self.__locs = locs # immutable

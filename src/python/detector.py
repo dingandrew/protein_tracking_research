@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-import math
 import pickle
 from collections import Counter
 
@@ -13,7 +12,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import KernelPCA
 
-from util import open_model_json, showTensor
+from util import open_model_json
 
 
 class Detector(nn.Module):
@@ -36,12 +35,6 @@ class Detector(nn.Module):
         '''
             Get the feature embeddings of the cluster on the frame
         '''
-        # print(mask.shape, torch.nonzero(mask).shape)
-
-        # self.graph_3d(frame1)
-        # self.graph_3d(frame2)
-        # self.graph_3d(mask)
-
         # (out_channels, in_channels, kZ, kH, kW)
         # 5 filters with same shape as entire frame
         weights = torch.empty((self.params['embedding_len'] * mask.size(0),
@@ -60,9 +53,7 @@ class Detector(nn.Module):
             start = end
             mask_count += 1
 
-        # print(torch.unique(mask))
-        # frame1 = F.normalize(frame1)
-        # frame2 = F.normalize(frame2)
+
         if train:
             # only need these feature for fitting the detector
             f1_features = F.conv3d(input=frame1, weight=weights)
@@ -74,8 +65,7 @@ class Detector(nn.Module):
         f2_features = F.conv3d(input=frame2, weight=weights)
         f2_features = f2_features.reshape((mask.size(0),
                                            self.params['embedding_len']))
-        # print(f1_features, f2_features)
-        # exit()
+
         return f1_features, f2_features
 
     def mutate_mask(self, mask):
@@ -125,11 +115,10 @@ class Detector(nn.Module):
         mutated_mask[6, ...] = torch.roll(mask,
                                           shifts=(-z_delta, 0, 0),
                                           dims=(1, 2, 3))  # roll z by -z_delta
-        # exit()
+        
         return mutated_mask
 
     def predict(self, feature):
-        # print(feature)
         # load the model
         if self.predictor is None or self.classifier is None:
             with open('../../models/detector.pickle', 'rb') as f:
@@ -145,23 +134,19 @@ class Detector(nn.Module):
         pca2 = self.predictor['PCA2']
         p2 = pca2.transform(feature)
 
-        # print(p2)
         predictions = self.classifier.predict(p2)
         return predictions
 
     def train_feat(self, f1, f2, graph=True):
         midpt = len(f1)
         print(midpt)
-        # data = np.concatenate((f1, f2), axis=0)
         # need to reduce the dimesionality of the data
         pca1 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
         pca2 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
         t1 = pca1.fit_transform(f1)
-        # t1 = pca1.fit_transform(data)
         t2 = pca2.fit_transform(f2)
 
         transformed_data = np.concatenate((t1, t2), axis=0)
-        # transformed_data = t1
         # dbscan will label the clusters
         dbscan = DBSCAN(eps=0.05, min_samples=10)
         dbscan.fit(transformed_data)

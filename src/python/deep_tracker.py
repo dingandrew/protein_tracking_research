@@ -15,9 +15,9 @@ import subprocess
 from joblib import Parallel, delayed
 import multiprocessing
 
-from util import open_model_json, save_as_json, showTensor, calc_euclidean_dist, has_intersection
+from util import open_model_json, save_as_json, calc_euclidean_dist
 from detector import Detector
-from track import Track
+from track import Track, Status
 
 # Parse arguments
 parser = argparse.ArgumentParser(
@@ -80,16 +80,6 @@ class WeightsLoader(Dataset):
             weights = self.transform(weights)
         return weights
 
-class State:
-    # possible states
-    ACTIVE = 'active'
-    DEAD = 'dead'
-
-    # possible relations
-    BIRTH = 'F:{}-birth '
-    SPLIT = 'F:{}-split from {} '
-    MERGE = 'F:{}-merge with {} '
-    MATCH = 'F:{}-match '
 
 class Trainer():
     '''
@@ -167,22 +157,17 @@ class Trainer():
                 end = len(curr_track.locs)
 
             partial_locs = curr_track.locs[start:end]
-            # print(partial_locs)
-            # print(parts_count)
             for index in partial_locs:
                 mask[parts_count, :, index[2], index[0], index[1]] = 1
 
             start = end
             parts_count += 1
 
-        # print(mask.shape)
-        # print(torch.unique(mask), (torch.flatten(mask)).sum())
-        # exit()
-        # print(curr_track.centroid)
         centroid = torch.zeros(3)
         centroid[0] = curr_track.centroid[2]
         centroid[1] = curr_track.centroid[0]
         centroid[2] = curr_track.centroid[1]
+
         return mask, centroid
 
     def crop_frame(self, tensor, center, width, height):
@@ -193,7 +178,7 @@ class Trainer():
         x_min = int(center[1] - width if center[1] - width > 0 else 0)
         y_max = int(center[2] + height if center[2] + height < 512 else 512)
         y_min = int(center[2] - height if center[2] - height > 0 else 0)
-        # print(center, x_max, x_min, y_max, y_min)
+
         return tensor[:, :, :, x_min:x_max, y_min:y_max]
 
     def find_min_crop(self, mask, label):
@@ -214,8 +199,7 @@ class Trainer():
 
         width = math.ceil(x_range + self.params['crop_window'])
         height = math.ceil(y_range + self.params['crop_window'])
-        # tqdm.write('width: {} height: {} label: {}'.format(width, height, label))
-        # exit()
+
         return width, height
 
     def predictor_features(self, epoch_id):
@@ -223,23 +207,19 @@ class Trainer():
         frame_tracks = self.tracks[self.currSearchFrame]
         currTrack = frame_tracks[self.trainExample]
         mask, label = self.getMask(currTrack)
+
         frame1 = self.full_data[0, self.currSearchFrame - 1, 0, ...]
         frame2 = self.full_data[0, self.currSearchFrame, 0, ...]
         frame1 = frame1.reshape(
             (1, 1, frame1.size(0), frame1.size(1), frame1.size(2)))
         frame2 = frame2.reshape(
             (1, 1, frame2.size(0), frame2.size(1), frame2.size(2)))
-        # print('frame _size_full: ', frame1.shape, frame2.shape)
 
-        # frame1_crop = self.crop_frame(
-        #     self.weights_data[self.currSearchFrame], label, 50, 50)
-        # frame2_crop = self.crop_frame(
-        #     self.weights_data[self.currSearchFrame + 1], label, 50, 50)
         width, height = self.find_min_crop(mask, label)
         frame1_crop = self.crop_frame(frame1, label, width, height)
         frame2_crop = self.crop_frame(frame2, label, width, height)
         mask_crop = self.crop_frame(mask, label, width, height)
-        # print(frame1_crop.shape, frame2_crop.shape, mask_crop.shape)
+
         f1_feature, f2_feature = self.detector(frame1_crop.cuda().float(),
                                                frame2_crop.cuda().float(),
                                                mask_crop.cuda().float())
@@ -259,12 +239,13 @@ class Trainer():
         # record the relation of each cluster [{min_indx:0.8}, ...]
         forward_state = {}
         backward_state = {}
+        forward_rates = {}
+        backward_rates = {}
 
         # prefetch current frame as it is constant for each case
         frameCurr = self.full_data[0, frame_num - 1, 0, ...]
         frameCurr = frameCurr.reshape(
             (1, 1, frameCurr.size(0), frameCurr.size(1), frameCurr.size(2)))
-
 
         if forward_scan:
             # get the clusters in this frame
@@ -297,6 +278,7 @@ class Trainer():
                 if forward_pos_rate <= 0.06:
 
                     forward_state[currTrack] = None
+                    forward_rates[currTrack] = forward_pos_rate
                     tqdm.write('FORWARD - Cluster Num: {}, Frame Num: {}, Match: NONE'.format(
                         indx, frame_num))
                 else:
@@ -309,11 +291,10 @@ class Trainer():
                             minDist = calc_euclidean_dist(
                                 currTrack.centroid, nextTrack.centroid, [1, 1, 1])
 
-                    # forward_state[currTrack] = (minTrack, forward_pos_rate)
                     forward_state[currTrack] = minTrack
+                    forward_rates[currTrack] = forward_pos_rate
                     tqdm.write('FORWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
-                        indx, frame_num,forward_pos_rate))
-
+                        indx, frame_num, forward_pos_rate))
 
         if backward_scan:
             # get the clusters in this frame
@@ -346,6 +327,7 @@ class Trainer():
                 if backward_pos_rate <= 0.06:
 
                     backward_state[currTrack] = None
+                    backward_rates[currTrack] = backward_pos_rate
                     tqdm.write('BACKWARD - Cluster Num: {}, Frame Num: {}, Match: NONE'.format(
                         indx, frame_num))
                 else:
@@ -358,12 +340,13 @@ class Trainer():
                             minDist = calc_euclidean_dist(
                                 currTrack.centroid, nextTrack.centroid, [1, 1, 1])
 
-                    # backward_state[currTrack] = (minTrack, backward_pos_rate)
                     backward_state[currTrack] = minTrack
+                    backward_rates[currTrack] = backward_pos_rate
+
                     tqdm.write('BACKWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
                         indx, frame_num, backward_pos_rate))
 
-        return forward_state, backward_state
+        return forward_state, forward_rates, backward_state, backward_rates
 
 
 if __name__ == "__main__":
@@ -489,8 +472,7 @@ if __name__ == "__main__":
         ONE_TO_ONE_COUNT = 0
         SPLIT_COUNT = 0
         MERGE_COUNT = 0
-        BIRTH_COUNT = trainer.counts['1'] # count initial frame 
-    
+        BIRTH_COUNT = trainer.counts['1']  # count initial frame
 
         # will hold each track in a frame and what it points too
         next_forward_state = []
@@ -504,60 +486,62 @@ if __name__ == "__main__":
             # check all tracks in this frame
             # TODO can this be multi-threaded
             if currFrame == 1:
-                forward_state, _ = trainer.get_predictor_results(currFrame,
+                forward_state, forward_rates, _,  _ = trainer.get_predictor_results(currFrame,
                                                                  backward_scan=False)
             else:
                 forward_state = next_forward_state
-                
+                forward_rates = next_forward_rates
+
             if currFrame == 69:
-                _ , backward_state = trainer.get_predictor_results(currFrame + 1,
+                _, _, backward_state, backward_rates = trainer.get_predictor_results(currFrame + 1,
                                                                   forward_scan=False)
             else:
-                next_forward_state, backward_state = trainer.get_predictor_results(currFrame + 1)
+                next_forward_state, next_forward_rates, backward_state, backward_rates = trainer.get_predictor_results(
+                    currFrame + 1)
 
-            
             tqdm.write('\tCheck Relation States')
             # NOTE: for now ignore the pos_rate
             for forward_key in forward_state.keys():
                 # how many objects in next frame point to this object
 
-                forward_match_count = list(backward_state.values()).count(forward_key)
+                forward_match_count = list(
+                    backward_state.values()).count(forward_key)
 
                 backward_key = forward_state[forward_key]
                 if backward_key:
                     # how many objects in previous frame point to this object
-                    backward_match_count = list(forward_state.values()).count(backward_key)
+                    backward_match_count = list(
+                        forward_state.values()).count(backward_key)
                 else:
                     backward_match_count = 0
-                
 
                 # find the track asscoiated with forward_key
                 track_indx = trainer.tracks[currFrame].index(forward_key)
                 currTrack = trainer.tracks[currFrame][track_indx]
 
-                
                 if forward_match_count == 0 or backward_match_count == 0:
                     # object dead no match in next frame
                     tqdm.write('\t DEATH forward_match_count: {} backward_match_count; {}'
-                                .format(forward_match_count, backward_match_count))
-                    currTrack.state = State.DEAD
+                               .format(forward_match_count, backward_match_count))
+                    currTrack.state = Status.DEAD
                     DEATH_COUNT += 1
                     continue
-                
+
                 if forward_match_count == 1 and backward_match_count == 1:
                     # object has 1 to 1 match with next frame
                     tqdm.write('\t MATCH forward_match_count: {} backward_match_count; {}'
-                                .format(forward_match_count, backward_match_count))
-                    # find the track asscoiated with backward_key
-                    # print(forward_key)
-                    # print(backward_key)
-                    track_indx = trainer.tracks[currFrame + 1].index(backward_key)
-                    track = trainer.tracks[currFrame + 1][track_indx]
-                    track.id = currTrack.id
-                    track.state = currTrack.state
-                    track.origin += currTrack.origin + State.MATCH.format(currFrame)
+                               .format(forward_match_count, backward_match_count))
+                    if forward_rates[forward_key] >= trainer.params['pos_threshhold']\
+                        and backward_rates[backward_key] >= trainer.params['pos_threshhold']:
+                        # find the track asscoiated with backward_key
+                        track_indx = trainer.tracks[currFrame + 1].index(backward_key)
+                        track = trainer.tracks[currFrame + 1][track_indx]
+                        track.id = currTrack.id
+                        track.state = currTrack.state
+                        track.origin += currTrack.origin + \
+                            Status.MATCH.format(currFrame)
 
-                    ONE_TO_ONE_COUNT += 1
+                        ONE_TO_ONE_COUNT += 1
 
                 # if forward_match_count > 1 and backward_match_count == 1:
                 if forward_match_count > 1:
@@ -567,12 +551,14 @@ if __name__ == "__main__":
                     for backward_keys in backward_state.keys():
                         if backward_state[backward_keys] == forward_key:
                             # find the track asscoiated with backward_key
-                            track_indx = trainer.tracks[currFrame +1].index(backward_keys)
+                            track_indx = trainer.tracks[currFrame +
+                                                        1].index(backward_keys)
                             track = trainer.tracks[currFrame + 1][track_indx]
                             track.id = nextID
                             nextID += 1
-                            track.state = State.ACTIVE
-                            track.origin += State.SPLIT.format(currFrame, currTrack.id)
+                            track.state = Status.ACTIVE
+                            track.origin += Status.SPLIT.format(
+                                currFrame, currTrack.id)
 
                     SPLIT_COUNT += 1
 
@@ -582,31 +568,21 @@ if __name__ == "__main__":
                     tqdm.write('\t MERGE forward_match_count: {} backward_match_count; {}'
                                .format(forward_match_count, backward_match_count))
                     # find the track asscoiated with backward_key
-                    track_indx = trainer.tracks[currFrame + 1].index(backward_key)
+                    track_indx = trainer.tracks[currFrame +
+                                                1].index(backward_key)
                     track = trainer.tracks[currFrame + 1][track_indx]
                     track.id = nextID
                     nextID += 1
-                    track.state = State.ACTIVE
+                    track.state = Status.ACTIVE
 
                     for forward_keys in forward_state.keys():
                         if forward_state[forward_keys] == backward_key:
-                            track.origin += State.MERGE.format(currFrame, forward_keys.id)
+                            track.origin += Status.MERGE.format(
+                                currFrame, forward_keys.id)
                             # do this so we dont double count it
                             forward_state[forward_keys] = None
-                    
+
                     MERGE_COUNT += 1
-
-                        
-                # else:
-                #     print('ERROR Should never happen')
-                #     print('forward_match_count: {} backward_match_count; {}'
-                #                .format(forward_match_count, backward_match_count))
-                #     print(forward_key)
-                #     print(forward_state[forward_key])
-                #     print(backward_key)
-                #     print(backward_state[backward_key])
-                #     exit()
-
 
             # remaining unlabled clusters in next frame are all the result of birth
             for back_key in backward_state.keys():
@@ -618,21 +594,13 @@ if __name__ == "__main__":
                     tqdm.write('\t BIRTH ')
                     nextTrack.id = nextID
                     nextID += 1
-                    nextTrack.state = State.ACTIVE
-                    nextTrack.origin += State.BIRTH.format(currFrame)
+                    nextTrack.state = Status.ACTIVE
+                    nextTrack.origin += Status.BIRTH.format(currFrame + 1)
                     BIRTH_COUNT += 1
 
-  
         with open('../../data/labeled_tracks.pickle', 'wb') as f:
             # Pickle the 'data' dictionary using the highest protocol available.
             pickle.dump(trainer.tracks, f, pickle.HIGHEST_PROTOCOL)
-
-        # with open('../../data/f1_pos_rate_list.pickle', 'wb') as f:
-        #     # Pickle the 'data' dictionary using the highest protocol available.
-        #     pickle.dump(f1_pos_rate_list, f, pickle.HIGHEST_PROTOCOL)
-        # with open('../../data/f2_pos_rate_list.pickle', 'wb') as f:
-        #     # Pickle the 'data' dictionary using the highest protocol available.
-        #     pickle.dump(f2_pos_rate_list, f, pickle.HIGHEST_PROTOCOL)
 
         print('-------------- Tracking Statistics ------------------')
         print('Deaths: ', DEATH_COUNT)
