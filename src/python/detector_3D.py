@@ -31,7 +31,7 @@ class Detector(nn.Module):
         self.classifier = None
         #########################################################
 
-    def forward(self, frame1, frame2, mask, train=True):
+    def forward(self, frame1, frame2, mask, train=True, fast=True):
         '''
             Get the feature embeddings of the cluster on the frame
         '''
@@ -41,7 +41,8 @@ class Detector(nn.Module):
                                mask.size(1),
                                mask.size(2),
                                mask.size(3),
-                               mask.size(4))).cuda()
+                               mask.size(4)))
+                            #    .cuda()
 
         # create custom kernel filters by transforming each partial mask
         start = 0
@@ -53,18 +54,47 @@ class Detector(nn.Module):
             start = end
             mask_count += 1
 
+        # if fast:
+        #     # features are essentially number of intersections, if data is binarized
+        #     # this is more efficient then performing convolutions
 
+        #     weight_intersect = torch.nonzero(weights)
+        #     print(weight_intersect)
+        #     if train:
+        #         # only need these feature for fitting the detector
+        #         f1_features = F.conv3d(input=frame1, weight=weights)
+        #         f1_features = f1_features.reshape((mask.size(0), 
+        #                                         self.params['embedding_len']))
+        #     else:
+        #         f1_features = None
+
+        #     f2_intersec = torch.unique(frame2)
+        #     print(f2_intersec)
+        #     f2_features = torch.zeroes((mask.size(0),
+        #                                self.params['embedding_len'])).cuda()
+
+        #     # for batch in range(mask.size(0)):
+        #         # f2_features[batch, ...] = 
+                
+        #     # f2_features = (weight_intersect == f2_intersec)
+
+
+
+        #     print(f2_features)
+
+        #     exit()
+        # else:
         if train:
             # only need these feature for fitting the detector
             f1_features = F.conv3d(input=frame1, weight=weights)
             f1_features = f1_features.reshape((mask.size(0), 
-                                               self.params['embedding_len']))
+                                            self.params['embedding_len']))
         else:
             f1_features = None
 
         f2_features = F.conv3d(input=frame2, weight=weights)
         f2_features = f2_features.reshape((mask.size(0),
-                                           self.params['embedding_len']))
+                                        self.params['embedding_len']))
 
         return f1_features, f2_features
 
@@ -80,7 +110,7 @@ class Detector(nn.Module):
                     (embedding_len, mask_C, mask_Z, mask_X, mask_Y)
         '''
         # find the indexes of all nonzero elements in tensor
-        locs = torch.nonzero(mask) 
+        locs = torch.nonzero(mask, as_tuple=False) 
         # print(locs)
         # find the delta, which is the range of each z,x,y dim,
         # to shift the mask by it by its own body length
@@ -93,7 +123,8 @@ class Detector(nn.Module):
                                     mask.size(0),
                                     mask.size(1),
                                     mask.size(2),
-                                    mask.size(3))).cuda()
+                                    mask.size(3)))
+                                    # .cuda()
 
         # create custom kernel filters by transforming mask
         mutated_mask[0, ...] = mask  # original mask mask

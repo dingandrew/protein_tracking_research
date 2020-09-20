@@ -11,9 +11,9 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import matplotlib.pyplot as plt
 
-import subprocess
-from joblib import Parallel, delayed
-import multiprocessing
+from torch.multiprocessing import Process, Queue
+# import multiprocessing
+import torch.multiprocessing as multiprocessing
 
 from util import load_json, load_pickle, save_pickle, save_tracks_as_json, calc_euclidean_dist
 from detector_3D import Detector
@@ -145,8 +145,9 @@ class Tracker():
         self.args = args
         self.params = params
         # init network and optimizer
-        self.detector = Detector(self.params).cuda()
-
+        self.detector = Detector(self.params)
+        # .cuda()
+        
         # track the current example
         self.currSearchFrame = 1
         self.trainExample = 0
@@ -161,7 +162,7 @@ class Tracker():
         self.full_data = FramesData(root_dir="../../data/raw_data/Segmentation_and_result",
                                     params=model_config[args.model_task],
                                     transform=transforms.Compose(
-                                        [ToTensorFrame()])
+                                        [ToTensorFrame()]),
                                     )
 
         # store the posrates for graphing
@@ -243,7 +244,7 @@ class Tracker():
                     label - coordinates of centroid [z_coord, x_coord, y_coord]
             Return: width, height
         '''
-        locs = torch.nonzero(mask)
+        locs = torch.nonzero(mask, as_tuple=False)
         x_max = max(locs[:, 3])
         x_min = min(locs[:, 3])
         y_min = min(locs[:, 4])
@@ -271,14 +272,121 @@ class Tracker():
         frame2_crop = self.crop_frame(frame2, label, width, height)
         mask_crop = self.crop_frame(mask, label, width, height)
 
-        f1_feature, f2_feature = self.detector(frame1_crop.cuda().float(),
-                                               frame2_crop.cuda().float(),
-                                               mask_crop.cuda().float())
+        f1_feature, f2_feature = self.detector(frame1_crop.float(),
+                                               frame2_crop.float(),
+                                               mask_crop.float())  # .cuda()
 
         tqdm.write('Predictor Epoch: {}, Cluster Num: {}, Frame Num: {}'.format(
             epoch_id, self.trainExample, self.currSearchFrame))
 
         return f1_feature, f2_feature
+
+    def forward_scan(self, frame_num, return_dict):
+        forward_state = {}
+        forward_rates = {}
+
+        frameCurr = self.full_data[frame_num]
+        # get the clusters in this frame
+        frame_tracks = self.tracks[frame_num]
+        # scan the next frame
+        frameNext = self.full_data[frame_num + 1]
+
+        for indx, currTrack in enumerate(frame_tracks):
+            mask, label = self.getMask(currTrack)
+            width, height = self.find_min_crop(mask, label)
+            frame1_crop = self.crop_frame(frameCurr, label, width, height)
+            frame2_crop = self.crop_frame(frameNext, label, width, height)
+            mask_crop = self.crop_frame(mask, label, width, height)
+            # print(frame1_crop.shape, frame2_crop.shape, mask_crop.shape) .cuda()
+            _, f2_feature = self.detector(frame1_crop.float(),
+                                          frame2_crop.float(),
+                                          mask_crop.float(),
+                                            train=True)
+
+            partial_predictions = self.detector.predict(
+                f2_feature.cpu().numpy())
+            pos_pred = 0
+            for label in partial_predictions:
+                if label == self.params['pos_lbl']:
+                    pos_pred += 1
+            forward_pos_rate = pos_pred / len(partial_predictions)
+
+            if forward_pos_rate <= 0.06:
+
+                forward_state[currTrack] = None
+                forward_rates[currTrack] = forward_pos_rate
+                tqdm.write('FORWARD - Cluster Num: {}, Frame Num: {}, Match: NONE'.format(
+                    indx, frame_num))
+            else:
+                # has potential match min closest cluster and append with rate
+                minDist = math.inf
+                minTrack = None
+                for nextTrack in self.tracks[frame_num + 1]:
+                    if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
+                        minTrack = nextTrack
+                        minDist = calc_euclidean_dist(currTrack.centroid, nextTrack.centroid)
+
+                forward_state[currTrack] = minTrack
+                forward_rates[currTrack] = forward_pos_rate
+                tqdm.write('FORWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
+                    indx, frame_num, forward_pos_rate))
+        
+        return_dict['fs'] = forward_state
+        return_dict['fr'] = forward_rates
+
+    def backward_scan(self, frame_num, return_dict):
+        backward_state = {}
+        backward_rates = {}
+
+        frameCurr = self.full_data[frame_num]
+        # get the clusters in this frame
+        frame_tracks = self.tracks[frame_num]
+        # scan the prev frame
+        framePrev = self.full_data[frame_num - 1]
+
+        for indx, currTrack in enumerate(frame_tracks):
+            mask, label = self.getMask(currTrack)
+            width, height = self.find_min_crop(mask, label)
+            frame1_crop = self.crop_frame(frameCurr, label, width, height)
+            frame2_crop = self.crop_frame(framePrev, label, width, height)
+            mask_crop = self.crop_frame(mask, label, width, height)
+            
+            _, f2_feature = self.detector(frame1_crop.float(),
+                                          frame2_crop.float(),
+                                          mask_crop.float(), 
+                                          train=True)  # .cuda()
+
+            partial_predictions = self.detector.predict(
+                f2_feature.cpu().numpy())
+            pos_pred = 0
+            for label in partial_predictions:
+                if label == self.params['pos_lbl']:
+                    pos_pred += 1
+            backward_pos_rate = pos_pred / len(partial_predictions)
+
+            if backward_pos_rate <= 0.06:
+
+                backward_state[currTrack] = None
+                backward_rates[currTrack] = backward_pos_rate
+                tqdm.write('BACKWARD - Cluster Num: {}, Frame Num: {}, Match: NONE'.format(
+                    indx, frame_num))
+            else:
+                # has potential match min closest cluster and append with rate
+                minDist = math.inf
+                minTrack = None
+                for nextTrack in self.tracks[frame_num - 1]:
+                    if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
+                        minTrack = nextTrack
+                        minDist = calc_euclidean_dist(currTrack.centroid, nextTrack.centroid)
+
+                backward_state[currTrack] = minTrack
+                backward_rates[currTrack] = backward_pos_rate
+
+                tqdm.write('BACKWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
+                    indx, frame_num, backward_pos_rate))
+
+        return_dict['bs'] = backward_state
+        return_dict['br'] = backward_rates 
 
     def get_predictor_results(self, frame_num, forward_scan=True, backward_scan=True):
         '''
@@ -287,108 +395,38 @@ class Tracker():
                                        clusters that it may match too, if any
 
         '''
-        # record the relation of each cluster [{min_indx:0.8}, ...]
         forward_state = {}
-        backward_state = {}
         forward_rates = {}
+        backward_state = {}
         backward_rates = {}
 
-        # prefetch current frame as it is constant for each case
-        frameCurr = self.full_data[frame_num]
+        manager = multiprocessing.Manager()
+        return_dict = manager.dict()
+        jobs = []                          
 
         if forward_scan:
-            # get the clusters in this frame
-            frame_tracks = self.tracks[frame_num]
-            # scan the next frame
-            frameNext = self.full_data[frame_num + 1]
-
-            for indx, currTrack in enumerate(frame_tracks):
-                mask, label = self.getMask(currTrack)
-                width, height = self.find_min_crop(mask, label)
-                frame1_crop = self.crop_frame(frameCurr, label, width, height)
-                frame2_crop = self.crop_frame(frameNext, label, width, height)
-                mask_crop = self.crop_frame(mask, label, width, height)
-                # print(frame1_crop.shape, frame2_crop.shape, mask_crop.shape)
-                _, f2_feature = self.detector(frame1_crop.cuda().float(),
-                                              frame2_crop.cuda().float(),
-                                              mask_crop.cuda().float(),
-                                              train=True)
-
-                partial_predictions = self.detector.predict(
-                    f2_feature.cpu().numpy())
-                pos_pred = 0
-                for label in partial_predictions:
-                    if label == tracker.params['pos_lbl']:
-                        pos_pred += 1
-                forward_pos_rate = pos_pred / len(partial_predictions)
-
-                if forward_pos_rate <= 0.06:
-
-                    forward_state[currTrack] = None
-                    forward_rates[currTrack] = forward_pos_rate
-                    tqdm.write('FORWARD - Cluster Num: {}, Frame Num: {}, Match: NONE'.format(
-                        indx, frame_num))
-                else:
-                    # has potential match min closest cluster and append with rate
-                    minDist = math.inf
-                    minTrack = None
-                    for nextTrack in self.tracks[frame_num + 1]:
-                        if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
-                            minTrack = nextTrack
-                            minDist = calc_euclidean_dist(currTrack.centroid, nextTrack.centroid)
-
-                    forward_state[currTrack] = minTrack
-                    forward_rates[currTrack] = forward_pos_rate
-                    tqdm.write('FORWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
-                        indx, frame_num, forward_pos_rate))
+            # forward_state, forward_rates = self.forward_scan(frame_num)
+            p1 = Process(target=self.forward_scan,
+                         args=(frame_num, return_dict))
+            p1.start()
+            jobs.append(p1)
 
         if backward_scan:
-            # get the clusters in this frame
-            frame_tracks = self.tracks[frame_num]
-            # scan the prev frame
-            framePrev = self.full_data[frame_num - 1]
+            # backward_state, backward_rates = self.backward_scan(frame_num)
+            p2 = Process(target=self.backward_scan,
+                         args=(frame_num, return_dict))
+            p2.start()
+            jobs.append(p2)
 
-            for indx, currTrack in enumerate(frame_tracks):
-                mask, label = self.getMask(currTrack)
-                width, height = self.find_min_crop(mask, label)
-                frame1_crop = self.crop_frame(frameCurr, label, width, height)
-                frame2_crop = self.crop_frame(framePrev, label, width, height)
-                mask_crop = self.crop_frame(mask, label, width, height)
-              
-                _, f2_feature = self.detector(frame1_crop.cuda().float(),
-                                              frame2_crop.cuda().float(),
-                                              mask_crop.cuda().float(),
-                                              train=True)
+        for proc in jobs:
+            proc.join()
 
-                partial_predictions = self.detector.predict(
-                    f2_feature.cpu().numpy())
-                pos_pred = 0
-                for label in partial_predictions:
-                    if label == tracker.params['pos_lbl']:
-                        pos_pred += 1
-                backward_pos_rate = pos_pred / len(partial_predictions)
-
-                if backward_pos_rate <= 0.06:
-
-                    backward_state[currTrack] = None
-                    backward_rates[currTrack] = backward_pos_rate
-                    tqdm.write('BACKWARD - Cluster Num: {}, Frame Num: {}, Match: NONE'.format(
-                        indx, frame_num))
-                else:
-                    # has potential match min closest cluster and append with rate
-                    minDist = math.inf
-                    minTrack = None
-                    for nextTrack in self.tracks[frame_num - 1]:
-                        if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
-                            minTrack = nextTrack
-                            minDist = calc_euclidean_dist(currTrack.centroid, nextTrack.centroid)
-
-                    backward_state[currTrack] = minTrack
-                    backward_rates[currTrack] = backward_pos_rate
-
-                    tqdm.write('BACKWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
-                        indx, frame_num, backward_pos_rate))
-
+        # print(return_dict.keys())
+        if 'fs' in return_dict.keys():
+            forward_state, forward_rates = return_dict['fs'], return_dict['fr']
+        if 'bs' in return_dict.keys():
+            backward_state, backward_rates = return_dict['bs'], return_dict['br']
+        
         return forward_state, forward_rates, backward_state, backward_rates
 
     def find_relations(self, currFrame, forward_state, forward_rates, backward_state, backward_rates):
@@ -511,8 +549,7 @@ class Tracker():
         np.save('../../data/f1.npy', f1)
         np.save('../../data/f2.npy', f2)
 
-
-    def predict_all(self):
+    def predict_all(self, core_num):
         ''' 
             Will run the tracking algo on the entire dataset
 
@@ -539,7 +576,6 @@ class Tracker():
         # iterate through all frames , note we are checking next frame
         for currFrame in tqdm(range(1, 70)):
             # check all tracks in this frame
-            # TODO can this be multi-threaded
             if currFrame == 1:
                 forward_state, forward_rates, _,  _ = self.get_predictor_results(currFrame,
                                                                                     backward_scan=False)
@@ -549,7 +585,7 @@ class Tracker():
 
             if currFrame == 69:
                 _, _, backward_state, backward_rates = self.get_predictor_results(currFrame + 1,
-                                                                                     forward_scan=False)
+                                                                                  forward_scan=False)
             else:
                 next_forward_state, next_forward_rates, backward_state, backward_rates = self.get_predictor_results(
                     currFrame + 1)
@@ -571,12 +607,19 @@ if __name__ == "__main__":
     tracker = Tracker(args, model_config[args.model_task])
     tracker.load_data(track='../../data/tracks_protein.pickle',
                       count='../../data/counts.json')
+    tracker.detector.share_memory()
+    
+    
+    core_num = multiprocessing.cpu_count()
+    print("Running with " + str(core_num) + " cores.")
 
     # use the GPU if there is one
-    gpu_num = torch.cuda.device_count()
-    print('GPU NUM: {:2d}'.format(gpu_num))
-    if gpu_num > 1:
-        torch.cuda.set_device(0)
+    # gpu_num = torch.cuda.device_count()
+    # print('GPU NUM: {:2d}'.format(gpu_num))
+    # if gpu_num > 1:
+    #     torch.cuda.set_device(0)
+        # print(multiprocessing.get_all_start_methods())
+        # multiprocessing.set_start_method('spawn')
         # tracker.detector = torch.nn.DataParallel(
         #     tracker.detector, list(range(gpu_num))).cuda()
 
@@ -623,7 +666,7 @@ if __name__ == "__main__":
             print('\tpython3 deep_tracker.py --task train --type detect')
             exit()
 
-        tracker.predict_all()
+        tracker.predict_all(core_num)
 
         save_pickle(tracker.tracks, '../../data/labeled_protein_tracks.pickle')
 
