@@ -11,13 +11,12 @@ class Status:
     MATCH = 'F:{}-match '
 
 class Track:
-    def __init__(self, locs, id, centroid, state, origin, conf):
+    def __init__(self, locs, id, centroid, state, origin):
         self.__locs = locs # immutable
         self.id = id
         self.__centroid = centroid  # immutable
         self.state = state
         self.origin = origin
-        self.confidence = conf
 
     @property
     def locs(self):
@@ -28,7 +27,7 @@ class Track:
         return self.__centroid
 
     def __repr__(self):
-        return "\n<Track \nlocs:%s \nid:%s \ncentroid:%s \nstate:%s \norigin:%s \nconf:%s>" % (len(self.locs), self.id, self.centroid, self.state, self.origin, self.confidence)
+        return "\n<Track \nlocs:%s \nid:%s \ncentroid:%s \nstate:%s \norigin:%s>" % (len(self.locs), self.id, self.centroid, self.state, self.origin)
 
     def __eq__(self, other):
         if not isinstance(other, Track):

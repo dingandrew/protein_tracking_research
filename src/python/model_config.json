@@ -1,16 +1,16 @@
 {
-    "default": {
+    "protein": {
         "C": 1,
         "T": 70,
         "Z": 13,
         "W": 280,
         "H": 512,
-        "detect_num": 1000,
+        "detect_num": 2000,
         "embedding_len": 7,
         "piece_size": 10,
         "pos_lbl" : 0,
         "pos_threshhold" : 0.5,
-        "crop_window": 20
+        "crop_window": 10
     },
     "sprites":{
         "detect_num": 2000,

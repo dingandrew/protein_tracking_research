@@ -71,7 +71,7 @@ is a list of all the frames that it appears in.
 
 ![Plot](./images/detection_rates.png)
 ![Plot](./images/cluster_sizes.png)  
-
+![Plot](./images/events.png)  
 
 ### Visualize Results
 

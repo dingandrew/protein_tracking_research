@@ -12,7 +12,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import KernelPCA
 
-from util import open_model_json
+from util import load_json
 
 
 class Detector(nn.Module):
@@ -26,7 +26,7 @@ class Detector(nn.Module):
         '''
         super(Detector, self).__init__()
         self.params = params.copy()
-        #### Will be initialized only when predict is called ####
+        # Will be initialized only when self.predict is called ##
         self.predictor = None
         self.classifier = None
         #########################################################
@@ -163,7 +163,7 @@ class Detector(nn.Module):
             print('Labels: ', Counter(dbscan.labels_).keys())
             print('Label Counts: ', Counter(dbscan.labels_).values())
             self.plot_dbscan(dbscan, transformed_data, size=100)
-
+        
         # save the models
         self.predictor = {'PCA1': pca1, 'PCA2': pca2, 'DBSCAN': dbscan}
         with open('../../models/detector.pickle', 'wb') as f:
@@ -215,7 +215,7 @@ class Detector(nn.Module):
 
 if __name__ == "__main__":
     # test
-    model_config = open_model_json('./model_config.json')
+    model_config = load_json('./model_config.json')
     model = Detector(model_config['default'])
     print(model)
     param_num = sum([param.data.numel()
