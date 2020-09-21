@@ -25,7 +25,7 @@ S.el.Position = [655 10 100 30];
 
 
 global track_result
-track_json = './data/tracks_pretty.json';
+track_json = './data/tracks_protein_pretty.json';
 track_result = jsondecode(fileread(track_json));
 
 

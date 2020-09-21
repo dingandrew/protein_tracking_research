@@ -7,6 +7,7 @@ import math
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision import transforms
 import matplotlib.pyplot as plt
@@ -44,11 +45,12 @@ class ToTensorWeight(object):
         # numpy tensor: H x W x Z x C
         # torch tensor: C X Z x H X W
         weight_tensor = torch.from_numpy(weight_arr)
-        weight_tensor = weight_tensor.reshape(weight_tensor.size(3),
+        weight_tensor = weight_tensor.permute(3,2,0,1)
+        weight_tensor = weight_tensor.reshape(weight_tensor.size(0),
                                               1,
+                                              weight_tensor.size(1),
                                               weight_tensor.size(2),
-                                              weight_tensor.size(0),
-                                              weight_tensor.size(1)
+                                              weight_tensor.size(3)
                                               )
         return weight_tensor.float()
 
@@ -134,6 +136,7 @@ class FramesData(Dataset):
         if self.transform:
             frame = self.transform(frame)
         return frame
+        # .cuda()
 
 
 class Tracker():
@@ -158,12 +161,18 @@ class Tracker():
         self.counts = None
         ###############################
 
+
         # init dataset loader
         self.full_data = FramesData(root_dir="../../data/raw_data/Segmentation_and_result",
                                     params=model_config[args.model_task],
                                     transform=transforms.Compose(
                                         [ToTensorFrame()]),
                                     )
+        # self.full_data = WeightsLoader(root_dir="../../data/raw_data/Segmentation_and_result",
+        #                             params=model_config[args.model_task],
+        #                             transform=transforms.Compose(
+        #                                 [ToTensorFrame()]),
+        #                             )
 
         # store the posrates for graphing
         self.f1_pos_rate_list = []
@@ -281,7 +290,7 @@ class Tracker():
 
         return f1_feature, f2_feature
 
-    def forward_scan(self, frame_num, return_dict):
+    def forward_scan(self, frame_num):
         forward_state = {}
         forward_rates = {}
 
@@ -319,22 +328,36 @@ class Tracker():
                     indx, frame_num))
             else:
                 # has potential match min closest cluster and append with rate
-                minDist = math.inf
+                minDist = 100
+                # maxIntersect = 0
                 minTrack = None
+                # currLocs = currTrack.locs
+                
+                # find closest track with most intersetions
                 for nextTrack in self.tracks[frame_num + 1]:
                     if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
+                        # intersect = np.isin(currLocs,nextTrack.locs, assume_unique=True)
+                        # intersect_num = np.count_nonzero(intersect.all(0).any())
+                   
+                        # if intersect_num >= maxIntersect:
+                        #     minDist = calc_euclidean_dist(
+                        #         currTrack.centroid, nextTrack.centroid)
+                        #     maxIntersect = intersect_num
+                        #     minTrack = nextTrack
                         minTrack = nextTrack
-                        minDist = calc_euclidean_dist(currTrack.centroid, nextTrack.centroid)
+                        minDist = calc_euclidean_dist(
+                            currTrack.centroid, nextTrack.centroid)
 
                 forward_state[currTrack] = minTrack
                 forward_rates[currTrack] = forward_pos_rate
                 tqdm.write('FORWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
                     indx, frame_num, forward_pos_rate))
-        
-        return_dict['fs'] = forward_state
-        return_dict['fr'] = forward_rates
 
-    def backward_scan(self, frame_num, return_dict):
+        # return_dict['fs'] = forward_state
+        # return_dict['fr'] = forward_rates
+        return forward_state, forward_rates
+
+    def backward_scan(self, frame_num):
         backward_state = {}
         backward_rates = {}
 
@@ -372,23 +395,37 @@ class Tracker():
                     indx, frame_num))
             else:
                 # has potential match min closest cluster and append with rate
-                minDist = math.inf
+                minDist = 100
+                # maxIntersect = 0
                 minTrack = None
+                # currLocs = currTrack.locs
+
                 for nextTrack in self.tracks[frame_num - 1]:
                     if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
-                        minTrack = nextTrack
-                        minDist = calc_euclidean_dist(currTrack.centroid, nextTrack.centroid)
+                        # find closest track with most intersetions
+                        # intersect = np.isin(
+                        #     currLocs, nextTrack.locs, assume_unique=True)
+                        # intersect_num = np.count_nonzero(
+                        #     intersect.all(0).any())
 
+                        # if intersect_num >= maxIntersect:
+                        #     minDist = calc_euclidean_dist(
+                        #         currTrack.centroid, nextTrack.centroid)
+                        #     maxIntersect = intersect_num
+                        #     minTrack = nextTrack
+                        minTrack = nextTrack
+                        minDist = calc_euclidean_dist(
+                            currTrack.centroid, nextTrack.centroid)
                 backward_state[currTrack] = minTrack
                 backward_rates[currTrack] = backward_pos_rate
-
                 tqdm.write('BACKWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
                     indx, frame_num, backward_pos_rate))
 
-        return_dict['bs'] = backward_state
-        return_dict['br'] = backward_rates 
+        # return_dict['bs'] = backward_state
+        # return_dict['br'] = backward_rates
+        return backward_state, backward_rates
 
-    def get_predictor_results(self, frame_num, forward_scan=True, backward_scan=True):
+    def Tget_predictor_results(self, frame_num, forward_scan=True, backward_scan=True):
         '''
             frame_num: the track index [1, 70]
             [forward, backward]_state: each index points to list of 
@@ -428,6 +465,29 @@ class Tracker():
             backward_state, backward_rates = return_dict['bs'], return_dict['br']
         
         return forward_state, forward_rates, backward_state, backward_rates
+
+    def get_predictor_results(self, frame_num, forward_scan=True, backward_scan=True):
+        '''
+            frame_num: the track index [1, 70]
+            [forward, backward]_state: each index points to list of 
+                                       clusters that it may match too, if any
+
+        '''
+        forward_state = {}
+        forward_rates = {}
+        backward_state = {}
+        backward_rates = {}
+
+
+        if forward_scan:
+            forward_state, forward_rates = self.forward_scan(frame_num)
+
+        if backward_scan:
+            backward_state, backward_rates = self.backward_scan(frame_num)
+
+
+        return forward_state, forward_rates, backward_state, backward_rates
+
 
     def find_relations(self, currFrame, forward_state, forward_rates, backward_state, backward_rates):
         for forward_key in forward_state.keys():
@@ -509,7 +569,6 @@ class Tracker():
                             currFrame, forward_keys.id)
                         # do this so we dont double count it
                         forward_state[forward_keys] = None
-
                 self.MERGE_COUNT += 1
 
         # remaining unlabled clusters in next frame are all the result of birth

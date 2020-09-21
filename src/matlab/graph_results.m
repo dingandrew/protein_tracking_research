@@ -3,7 +3,7 @@ disp('Graph Results of Tracking');
 %need to swap x and y and add 1 to each axis 
 %matlab reads the axis a little bit wierd
 
-track_json = './data/tracks_frame.json';
+track_json = './data/tracks_protein_frame.json';
 track_result = jsondecode(fileread(track_json));
 
 data = './data/raw_data/Segmentation_and_result/%d/%d_3Dconnection2.fig';
