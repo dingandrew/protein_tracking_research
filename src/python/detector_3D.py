@@ -162,7 +162,7 @@ class Detector(nn.Module):
             self.classifier.fit(self.predictor['DBSCAN'].components_,
                                 self.predictor['DBSCAN'].labels_[self.predictor['DBSCAN'].core_sample_indices_])
 
-        pca2 = self.predictor['PCA2']
+        pca2 = self.predictor['PCA1']
         p2 = pca2.transform(feature)
 
         predictions = self.classifier.predict(p2)
@@ -171,15 +171,13 @@ class Detector(nn.Module):
     def train_feat(self, f1, f2, graph=True):
         midpt = len(f1)
         print(midpt)
+        data = np.concatenate((f1, f2), axis=0)
         # need to reduce the dimesionality of the data
         pca1 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
-        pca2 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
-        t1 = pca1.fit_transform(f1)
-        t2 = pca2.fit_transform(f2)
-
-        transformed_data = np.concatenate((t1, t2), axis=0)
+        transformed_data = pca1.fit_transform(data)
+      
         # dbscan will label the clusters
-        dbscan = DBSCAN(eps=0.05, min_samples=10)
+        dbscan = DBSCAN(eps=0.02, min_samples=10)
         dbscan.fit(transformed_data)
 
         if graph:
@@ -196,7 +194,7 @@ class Detector(nn.Module):
             self.plot_dbscan(dbscan, transformed_data, size=100)
         
         # save the models
-        self.predictor = {'PCA1': pca1, 'PCA2': pca2, 'DBSCAN': dbscan}
+        self.predictor = {'PCA1': pca1, 'DBSCAN': dbscan}
         with open('../../models/detector.pickle', 'wb') as f:
             pickle.dump(self.predictor, f, pickle.HIGHEST_PROTOCOL)
 

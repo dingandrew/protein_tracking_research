@@ -8,7 +8,7 @@
         "detect_num": 2000,
         "embedding_len": 7,
         "piece_size": 10,
-        "pos_lbl" : 0,
+        "pos_lbl" : [0, 1, 2, 3],
         "pos_threshhold" : 0.5,
         "crop_window": 10
     },

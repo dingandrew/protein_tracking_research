@@ -34,56 +34,6 @@ parser.add_argument('--init_model', default='',
 args = parser.parse_args()
 
 
-class ToTensorWeight(object):
-    '''
-        Convert ndarrays of (280 H, 512 W, 13 Z, 64 filter_num) 
-        to Tensors (64 filter_num, 13 Z, 280 H, 512 W).
-    '''
-
-    def __call__(self, weight_arr):
-        # convert and swap axis
-        # numpy tensor: H x W x Z x C
-        # torch tensor: C X Z x H X W
-        weight_tensor = torch.from_numpy(weight_arr)
-        weight_tensor = weight_tensor.permute(3,2,0,1)
-        weight_tensor = weight_tensor.reshape(weight_tensor.size(0),
-                                              1,
-                                              weight_tensor.size(1),
-                                              weight_tensor.size(2),
-                                              weight_tensor.size(3)
-                                              )
-        return weight_tensor.float()
-
-
-class WeightsLoader(Dataset):
-    '''
-        Dataloader to load the frame weights
-    '''
-
-    def __init__(self, root_dir, params, transform):
-        self.root_dir = root_dir
-        self.transform = transform
-        self.weight_file = 'Weights_{}.npy'
-        self.params = params
-
-    def __len__(self):
-        return self.params['T']
-
-    def __getitem__(self, frame_num):
-        if not isinstance(frame_num, int):
-            Exception('Frame Number must be a Integer')
-
-        file_path = path.join(self.root_dir,
-                              str(frame_num),
-                              self.weight_file.format(frame_num)
-                              )
-
-        weights = np.load(file_path)
-        if self.transform:
-            weights = self.transform(weights)
-        return weights
-
-
 class ToTensorFrame(object):
     '''
         Convert ndarrays of (280 H, 512 W, 13 Z) 
@@ -96,7 +46,7 @@ class ToTensorFrame(object):
         # torch tensor: B X C X Z x H X W
         frame_tensor = torch.from_numpy(frame_arr)
         # print(frame_tensor.shape)
-        
+
         frame_tensor = frame_tensor.permute(2, 0, 1)
         frame_tensor = frame_tensor.reshape(1,
                                             1,
@@ -104,7 +54,6 @@ class ToTensorFrame(object):
                                             frame_tensor.size(1),
                                             frame_tensor.size(2)
                                             )
-
 
         return frame_tensor
 
@@ -150,7 +99,7 @@ class Tracker():
         # init network and optimizer
         self.detector = Detector(self.params)
         # .cuda()
-        
+
         # track the current example
         self.currSearchFrame = 1
         self.trainExample = 0
@@ -161,18 +110,12 @@ class Tracker():
         self.counts = None
         ###############################
 
-
         # init dataset loader
         self.full_data = FramesData(root_dir="../../data/raw_data/Segmentation_and_result",
                                     params=model_config[args.model_task],
                                     transform=transforms.Compose(
                                         [ToTensorFrame()]),
                                     )
-        # self.full_data = WeightsLoader(root_dir="../../data/raw_data/Segmentation_and_result",
-        #                             params=model_config[args.model_task],
-        #                             transform=transforms.Compose(
-        #                                 [ToTensorFrame()]),
-        #                             )
 
         # store the posrates for graphing
         self.f1_pos_rate_list = []
@@ -193,7 +136,7 @@ class Tracker():
         '''
         print('Load Files: {} \n\t{}'.format(track, count))
         self.tracks = load_pickle(track)
-        self.counts = load_json(count) 
+        self.counts = load_json(count)
 
     def getMask(self, curr_track):
         '''
@@ -310,13 +253,13 @@ class Tracker():
             _, f2_feature = self.detector(frame1_crop.float(),
                                           frame2_crop.float(),
                                           mask_crop.float(),
-                                            train=True)
+                                          train=True)
 
             partial_predictions = self.detector.predict(
                 f2_feature.cpu().numpy())
             pos_pred = 0
             for label in partial_predictions:
-                if label == self.params['pos_lbl']:
+                if label in self.params['pos_lbl']:
                     pos_pred += 1
             forward_pos_rate = pos_pred / len(partial_predictions)
 
@@ -332,13 +275,13 @@ class Tracker():
                 # maxIntersect = 0
                 minTrack = None
                 # currLocs = currTrack.locs
-                
+
                 # find closest track with most intersetions
                 for nextTrack in self.tracks[frame_num + 1]:
                     if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
                         # intersect = np.isin(currLocs,nextTrack.locs, assume_unique=True)
                         # intersect_num = np.count_nonzero(intersect.all(0).any())
-                   
+
                         # if intersect_num >= maxIntersect:
                         #     minDist = calc_euclidean_dist(
                         #         currTrack.centroid, nextTrack.centroid)
@@ -373,17 +316,17 @@ class Tracker():
             frame1_crop = self.crop_frame(frameCurr, label, width, height)
             frame2_crop = self.crop_frame(framePrev, label, width, height)
             mask_crop = self.crop_frame(mask, label, width, height)
-            
+
             _, f2_feature = self.detector(frame1_crop.float(),
                                           frame2_crop.float(),
-                                          mask_crop.float(), 
+                                          mask_crop.float(),
                                           train=True)  # .cuda()
 
             partial_predictions = self.detector.predict(
                 f2_feature.cpu().numpy())
             pos_pred = 0
             for label in partial_predictions:
-                if label == self.params['pos_lbl']:
+                if label in self.params['pos_lbl']:
                     pos_pred += 1
             backward_pos_rate = pos_pred / len(partial_predictions)
 
@@ -439,7 +382,7 @@ class Tracker():
 
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
-        jobs = []                          
+        jobs = []
 
         if forward_scan:
             # forward_state, forward_rates = self.forward_scan(frame_num)
@@ -463,7 +406,7 @@ class Tracker():
             forward_state, forward_rates = return_dict['fs'], return_dict['fr']
         if 'bs' in return_dict.keys():
             backward_state, backward_rates = return_dict['bs'], return_dict['br']
-        
+
         return forward_state, forward_rates, backward_state, backward_rates
 
     def get_predictor_results(self, frame_num, forward_scan=True, backward_scan=True):
@@ -478,16 +421,13 @@ class Tracker():
         backward_state = {}
         backward_rates = {}
 
-
         if forward_scan:
             forward_state, forward_rates = self.forward_scan(frame_num)
 
         if backward_scan:
             backward_state, backward_rates = self.backward_scan(frame_num)
 
-
         return forward_state, forward_rates, backward_state, backward_rates
-
 
     def find_relations(self, currFrame, forward_state, forward_rates, backward_state, backward_rates):
         for forward_key in forward_state.keys():
@@ -523,7 +463,7 @@ class Tracker():
                 if forward_rates[forward_key] >= self.params['pos_threshhold']\
                         and backward_rates[backward_key] >= self.params['pos_threshhold']:
                     # find the track asscoiated with backward_key
-                    track_indx = self.tracks[currFrame +1].index(backward_key)
+                    track_indx = self.tracks[currFrame + 1].index(backward_key)
                     track = self.tracks[currFrame + 1][track_indx]
                     track.id = currTrack.id
                     track.state = currTrack.state
@@ -541,7 +481,8 @@ class Tracker():
                 for backward_keys in backward_state.keys():
                     if backward_state[backward_keys] == forward_key:
                         # find the track asscoiated with backward_key
-                        track_indx = self.tracks[currFrame + 1].index(backward_keys)
+                        track_indx = self.tracks[currFrame +
+                                                 1].index(backward_keys)
                         track = self.tracks[currFrame + 1][track_indx]
                         track.id = self.nextID
                         self.nextID += 1
@@ -584,7 +525,6 @@ class Tracker():
                 nextTrack.state = Status.ACTIVE
                 nextTrack.origin += Status.BIRTH.format(currFrame + 1)
                 self.BIRTH_COUNT += 1
-
 
     def train_all(self):
         f1 = np.zeros((1, self.params['embedding_len']))
@@ -637,7 +577,7 @@ class Tracker():
             # check all tracks in this frame
             if currFrame == 1:
                 forward_state, forward_rates, _,  _ = self.get_predictor_results(currFrame,
-                                                                                    backward_scan=False)
+                                                                                 backward_scan=False)
             else:
                 forward_state = next_forward_state
                 forward_rates = next_forward_rates
@@ -656,6 +596,56 @@ class Tracker():
                                 backward_state,
                                 backward_rates)
 
+    def gen_pos_rates(self):
+        self_pos_rate_list = []
+        forward_pos_rate_list = []
+
+        for frame_num in tqdm(range(1, self.params['T'])):
+            frame_tracks = self.tracks[frame_num]
+            frameCurr = self.full_data[frame_num]
+            frameNext = self.full_data[frame_num + 1]
+
+            for currTrack in frame_tracks:
+                mask, label = self.getMask(currTrack)
+                width, height = self.find_min_crop(mask, label)
+                frame1_crop = self.crop_frame(frameCurr, label, width, height)
+                frame2_crop = self.crop_frame(frameNext, label, width, height)
+                mask_crop = self.crop_frame(mask, label, width, height)
+
+                f1_feature, f2_feature = self.detector(frame1_crop.float(),
+                                                       frame2_crop.float(),
+                                                       mask_crop.float())  # .cuda()
+
+                partial_predictions = self.detector.predict(
+                    f2_feature.cpu().numpy())
+                pos_pred = 0
+                for label in partial_predictions:
+                    if label in self.params['pos_lbl']:
+                        pos_pred += 1
+                forward_pos_rate = pos_pred / len(partial_predictions)
+                forward_pos_rate_list.append(forward_pos_rate)
+
+                partial_predictions = self.detector.predict(
+                    f1_feature.cpu().numpy())
+                pos_pred = 0
+                for label in partial_predictions:
+                    if label in self.params['pos_lbl']:
+                        pos_pred += 1
+                self_pos_rate = pos_pred / len(partial_predictions)
+                self_pos_rate_list.append(self_pos_rate)
+
+        save_pickle(self_pos_rate_list, '../../data/self_pos_rate_list.pickle')
+        save_pickle(forward_pos_rate_list,
+                    '../../data/forward_pos_rate_list.pickle')
+
+    def calc_sizes():
+        cluster_size_list = []
+        for frame_num in tqdm(range(1, self.params['T'] + 1)):
+            for currTrack in self.tracks[frame_num]:
+                cluster_size_list.append(len(currTrack.locs))
+        save_pickle(cluster_size_list,
+                    '../../data/cluster_size_list.pickle')
+
 
 if __name__ == "__main__":
     print('-------------- Initializing the Protein Tracker ------------------')
@@ -667,8 +657,7 @@ if __name__ == "__main__":
     tracker.load_data(track='../../data/tracks_protein.pickle',
                       count='../../data/counts.json')
     tracker.detector.share_memory()
-    
-    
+
     core_num = multiprocessing.cpu_count()
     print("Running with " + str(core_num) + " cores.")
 
@@ -677,43 +666,39 @@ if __name__ == "__main__":
     # print('GPU NUM: {:2d}'.format(gpu_num))
     # if gpu_num > 1:
     #     torch.cuda.set_device(0)
-        # print(multiprocessing.get_all_start_methods())
-        # multiprocessing.set_start_method('spawn')
-        # tracker.detector = torch.nn.DataParallel(
-        #     tracker.detector, list(range(gpu_num))).cuda()
-
+    # print(multiprocessing.get_all_start_methods())
+    # multiprocessing.set_start_method('spawn')
+    # tracker.detector = torch.nn.DataParallel(
+    #     tracker.detector, list(range(gpu_num))).cuda()
 
     if args.task == "optim_param":
-        print('-------------- Find Parameters for Model ------------------')
+        print('-------------- Show Tracking Statistics ------------------')
+        
+        # # histogram of pos detection rates on forward scan and self scan
+        # if not(path.exists('../../data/self_pos_rate_list.pickle') and path.exists('../../data/forward_pos_rate_list.pickle')):
+        #     print('Warning - need to run tracker.gen_pos_rates first.')
+        #     tracker.gen_pos_rates()
+        # info.hist_pos_rates('../../data/self_pos_rate_list.pickle',
+        #                     '../../data/forward_pos_rate_list.pickle')
 
-        if path.exists('../../data/f1_pos_rate_list.pickle'):
-            info.hist_pos_rates('../../data/f1_pos_rate_list.pickle',
-                                '../../data/f2_pos_rate_list.pickle')
-        else:
-            print('Warning - need to run tracker.gen_pos_rates first.')
+        # # histogram of whole cluster sizes
+        # if not path.exists('../../data/cluster_size_list.pickle'):
+        #     print('Warning - need to run tracker.calc_sizes first.')
+        #     tracker.calc_sizes()
+        # info.hist_sizes('../../data/cluster_size_list.pickle')
+        
+        # # histogram of tracking events
+        # info.event_counts('../../data/tracks_protein_pretty.json')
 
-        # histogram of whole cluster sizes
-        if not path.exists('../../data/cluster_size_list.pickle'):
-            cluster_size_list = []
-            for f in range(1, 71):
-                for currTrack in tracker.tracks[f]:
-                    cluster_size_list.append(len(currTrack.locs))
-
-            save_pickle(cluster_size_list,
-                        '../../data/cluster_size_list.pickle')
-        else:
-            cluster_size_list = load_pickle(
-                '../../data/cluster_size_list.pickle')
-
-        info.hist_sizes(cluster_size_list)
-
-        info.event_counts('../../data/tracks_protein_pretty.json')
+        # show tracking compared to ground truth
+        info.tracking_results('../../data/labeled_protein_tracks.pickle',
+                              '../../data/test/mapping.json')
 
     elif args.task == "train":
         print('-------------- Train the Protein Tracker ----------------')
         tracker.train_all()
         print('-------------- Fit the Protein Tracker ------------------')
-        f1 = np.load('../../data/f1.npy')     
+        f1 = np.load('../../data/f1.npy')
         f2 = np.load('../../data/f2.npy')
         tracker.detector.train_feat(f1[1:, ...], f2[1:, ...])
 
@@ -726,19 +711,16 @@ if __name__ == "__main__":
             exit()
 
         tracker.predict_all(core_num)
-
         save_pickle(tracker.tracks, '../../data/labeled_protein_tracks.pickle')
-
         print('-------------- Tracking Statistics ------------------')
         print('Deaths: ', tracker.DEATH_COUNT)
         print('Births: ', tracker.BIRTH_COUNT)
         print('One to Ones: ', tracker.ONE_TO_ONE_COUNT)
         print('Splits: ', tracker.SPLIT_COUNT)
         print('Merges: ', tracker.MERGE_COUNT)
-
         print('-------------- Saving Labeled Tracks ------------------')
         save_tracks_as_json(args.model_task,
-                            tracker.tracks, 
+                            tracker.tracks,
                             tracker.DEATH_COUNT,
                             tracker.ONE_TO_ONE_COUNT,
                             tracker.SPLIT_COUNT,
