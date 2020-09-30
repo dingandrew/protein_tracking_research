@@ -58,13 +58,44 @@ def calc_results(TP, TN, FN, FP):
 
 
 def tracking_results(labeled_tracks_path, mappings_json_path):
+    # labeled_tracks = load_pickle(labeled_tracks_path)
+    labeled_tracks = load_json('../../data/tracks_protein_pretty.json')
+    mappings = load_json(mappings_json_path)
+    results = {}
+    for key in mappings.keys():
+        results[key] = {key: [] for key in range(1, 71)}
+
+    print(results)
+    save_json(results, '../../data/results.json')
+    # for map_key in mappings.keys():
+    #     start_track = mappings[map_key]
+    #     if type(start_track) is list:
+    #         continue
+        
+    #     active = True
+    #     while active:
+
+    #         obj_tracks = labeled_tracks[str(float(start_track))]
+            
+
+    #         for track_dict in obj_tracks:
+    #             results[map_key][track_dict['Frame']].a
+
+
+    #             active = True if track_dict['state'] == Status.ACTIVE else False
 
 
 
 
 
 
-    exit()
+
+
+
+
+
+
+    # exit()
 
 
     
