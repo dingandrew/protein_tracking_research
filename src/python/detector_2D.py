@@ -24,26 +24,17 @@ class Detector(nn.Module):
         '''
         super(Detector, self).__init__()
         self.params = params.copy()
+        # Will be initialized only when self.predict is called ##
         self.predictor = None
         self.classifier = None
-        # self.gauss_kernel = self.get_gaussian_kernel()
+        #########################################################
+
 
     def forward(self, frame1, frame2, target, train=True):
         '''
-            1. input_seq -> fetaure_extractor => features
-            2. features -> RNN(bidrectional=true) => forwards and backwards predictions
-            3. predictions -> loss_calculator => loss
-            4. return loss
-
-            Input: input_seq has shape [batch, time_step, depth, z, x, y]
-                   target, the object we are trying to track through time
-                           it is h_0 
+            Get the feature embeddings of the cluster on the frame
 
         '''
-        # print(frame2.shape, frame1.shape, target.shape)
-        # self.graph_2d(frame1)
-        # self.graph_2d(frame2)
-        # self.graph_2d(target)
         f1 = frame1.view(-1,
                          frame1.size(2),
                          frame1.size(3),

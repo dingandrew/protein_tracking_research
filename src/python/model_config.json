@@ -1,124 +1,16 @@
 {
-    "default": {
-        "D": 1,
+    "protein": {
+        "C": 1,
         "T": 70,
-        "cnn": {
-            "conv_features": [
-                1,
-                32,
-                64,
-                128 
-            ],
-            "conv_kernels": [
-                [
-                    1,
-                    2,
-                    2
-                ],
-                [
-                    1,
-                    2,
-                    2
-                ],
-                [
-                    1,
-                    2,
-                    2
-                ]
-            ],
-            "conv_strides": [
-                [
-                    1,
-                    2,
-                    2
-                ],
-                [
-                    1,
-                    2,
-                    2
-                ],
-                [
-                    1,
-                    2,
-                    2
-                ]
-            ],
-            "out_sizes": [
-                [
-                    13,
-                    140,
-                    256
-                ],
-                [
-                    13,
-                    70,
-                    128
-                ],
-                [
-                    13,
-                    35,
-                    64
-                ]
-            ],
-            "drop_out": 0.2
-        },
-        "decode-cnn": {
-            "conv_features": [
-                128,
-                64,
-                1,
-                1
-            ],
-            "conv_kernels": [
-                [
-                    1,
-                    2,
-                    2
-                ],
-                [
-                    1,
-                    2,
-                    2
-                ],
-                [
-                    1,
-                    2,
-                    2
-                ]
-            ],
-            "conv_strides": [
-                [
-                    1,
-                    2,
-                    2
-                ],
-                [
-                    1,
-                    2,
-                    2
-                ],
-                [
-                    1,
-                    2,
-                    2
-                ]
-            ],
-            "drop_out": 0.2
-        },
-        "z_window": 3,
-        "x_window": 5,
-        "y_window": 5,
-        "confidence_thresh" : 0.50,
-        "epoch_num": 8001,
-        "grad_clip": 5,
-        "lr": 0.005,
-        "lr_decay_factor": 1,
-        "save_interval": 100,
-        "batch_size": 32,
-        "train_log_interval": 100,
-        "train_test_ratio": 0.85,
-        "validate_interval": 100,
-        "detect_num" : 10000
+        "Z": 13,
+        "W": 280,
+        "H": 512,
+        "detect_num": 2000,
+        "embedding_len": 7,
+        "piece_size": 10,
+        "pos_lbl" : [0, 1, 2, 3],
+        "pos_threshhold" : 0.5,
+        "crop_window": 10
     },
     "sprites":{
         "detect_num": 2000,

@@ -3,6 +3,8 @@
 
 Research to track segmented 3d images of protein clusters.
 
+2019 CVPR. Multi-Object Portion Tracking in 4D Fluorescence Microscopy Imagery with Deep Feature Maps. Paper link: http://openaccess.thecvf.com/content_CVPRW_2019/papers/CVMI/Jiao_Multi-Object_Portion_Tracking_in_4D_Fluorescence_Microscopy_Imagery_With_Deep_CVPRW_2019_paper.pdf
+
 
 ### Results on Synthetic Sprites Dataset
 Raw Sprites Dataset | Labeled Sprites Dataset
@@ -14,11 +16,11 @@ Full video in ./data
 ### Feature Embeddings Clustering
 Sprites Dataset 2D Distribution| Protein Dataset 2D Distribution
 -------------------- | -----------------------
-![Plot](./images/sprite_1.png) | ![Plot](./images/f2.png)
+![Plot](./images/sprite_1.png) | ![Plot](./images/protein_1.png)
 
 Sprites Dataset Clustering | Protein Dataset Clustering
 -------------------- | -----------------------
-![Plot](./images/sprite_2.png) | ![Plot](./images/dbscan1.png) 
+![Plot](./images/sprite_2.png) | ![Plot](./images/protein_2.png) 
 
 ### Set Up Enviroment
 
@@ -28,13 +30,14 @@ To set up python3 virtual env.
 
 /cell_tracking$ python3 -m venv env
 /cell_tracking$ source env/bin/activate
-/cell_tracking$ pip install -r requirements.txt 
+/cell_tracking$ pip3 install -r requirements.txt 
 
 ```
 
 ### Generate Usable Data
 
-This requires the original Segmentation_Results files from Yang.
+This requires the original segmentation results data, from the 2019 CVPR Multi-Object 
+Portion Tracking in 4D Fluorescence Microscopy Imagery with Deep Feature Maps paper.
 
 ```
 
@@ -63,6 +66,12 @@ is a list of every track in that frame.
 tracks_pretty.json: Json file where the key is the cluster id and the value
 is a list of all the frames that it appears in.
 
+
+### Tracking Results
+
+![Plot](./images/detection_rates.png)
+![Plot](./images/cluster_sizes.png)  
+![Plot](./images/events.png)  
 
 ### Visualize Results
 

@@ -212,18 +212,30 @@ for n in range(0, N):
 with Parallel(n_jobs=core_num, backend="threading") as parallel:
     for split in ['train', 'test']:
         S = batch_nums[split]
+
         for s in range(0, S): # for each batch of sequences
             out_batch = parallel(delayed(process_batch)(states_batch[n], s) for n in range(0, N)) # N * 2 * T * H * W * D
+
             out_batch = list(zip(*out_batch)) # 2 * N * T * H * W * D
+
             org_seq_batch = torch.stack(out_batch[0], dim=0) # N * T * H * W * D
+
             states_batch = out_batch[1] # N * []
+
             if arg.v == 1:
+
                 for t in range(0, T):
+
                     util.imshow(org_seq_batch[0, t], 400, 400, 'img', 50)
+
             else:
                 org_seq_batch = org_seq_batch.permute(0, 1, 4, 2, 3) # N * T * D * H * W
+
                 filename = split + '_' + str(s) + '.pt'
+
                 torch.save(org_seq_batch, path.join(output_input_dir, filename))
+
+                
             print(split + ': ' + str(s+1) + ' / ' + str(S))
 if arg.metric == 1:
     file.close()
