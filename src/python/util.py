@@ -24,10 +24,15 @@ def calc_centroid(arr):
     sumZ = np.sum(arr[:, 2])
     return [sumX/length, sumY/length, sumZ/length]
 
+def argmin(arg1, arg2):
+    if len(arg1) < len(arg2):
+        return arg1
+    else:
+        return arg2
 
 def calc_euclidean_dist(p1, p2):
     '''
-        Calculate the weighted euclidean distace between 2 points in 3D/2D
+        Calculate the weighted euclidean distace between 2 points 
 
         Return: float distance
     '''
@@ -36,7 +41,7 @@ def calc_euclidean_dist(p1, p2):
     elif len(p1) == 2:
         return sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
     else:
-        return Exception('Invalid Dimensions for Centroid Coordinates')
+        return Exception('Invalid Dimensions')
 
 def save_tracks_as_json(name, tracks, DEATH_COUNT, ONE_TO_ONE_COUNT, SPLIT_COUNT, MERGE_COUNT, BIRTH_COUNT):
     '''
@@ -65,9 +70,11 @@ def save_tracks_as_json(name, tracks, DEATH_COUNT, ONE_TO_ONE_COUNT, SPLIT_COUNT
                 json_pretty[track.id] = []
 
             json_pretty[track.id].append({'Frame': currFrame, 'locs': len(track.locs),
-                                          'centroid': track.centroid, 'state': track.state, 'origin': track.origin})
+                                          'centroid': track.centroid, 'state': track.state, 
+                                          'origin': track.origin, 'back_conf':track.backward_conf, 
+                                          'forward_conf':track.forward_conf, 'match_count':track.match_count})
             json_frame_format[currFrame].append({'id': track.id, 'locs': track.locs.tolist(),
-                                                 'centroid': track.centroid, 'state': track.state, 'origin': track.origin})
+                                                 'centroid': track.centroid, 'state': track.state, 'origin': track.origin, 'back_conf': track.backward_conf, 'forward_conf': track.forward_conf})
 
     save_json(json_pretty, '../../data/tracks_{}_pretty.json'.format(name))
     save_json(json_frame_format, '../../data/tracks_{}_frame.json'.format(name))

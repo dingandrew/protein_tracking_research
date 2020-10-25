@@ -7,7 +7,7 @@ import copy
 import pickle
 import json
 from track import Track, Status 
-from util import save_counts_json, calc_centroid
+from util import calc_centroid
 
 # Parse arguments
 parser = argparse.ArgumentParser(
