@@ -48,42 +48,21 @@ class Detector(nn.Module):
         start = 0
         end = 0
         mask_count = 0
+        # print(mask.shape)
+        locs = np.nonzero(mask)
+        # print(locs)
+        z_delta = (locs[:, 2].max() - locs[:, 2].min()) + 1
+        x_delta = (locs[:, 3].max() - locs[:, 3].min()) + 1
+        y_delta = (locs[:, 4].max() - locs[:, 4].min()) + 1
+        # print(z_delta, x_delta, y_delta)
+        # exit()
         while mask_count < mask.size(0):
             end += self.params['embedding_len']
-            weights[start:end] = self.mutate_mask(mask[mask_count, ...])
+            weights[start:end] = self.mutate_mask(
+                mask[mask_count, ...], z_delta, x_delta, y_delta)
             start = end
             mask_count += 1
 
-        # if fast:
-        #     # features are essentially number of intersections, if data is binarized
-        #     # this is more efficient then performing convolutions
-
-        #     weight_intersect = torch.nonzero(weights)
-        #     print(weight_intersect)
-        #     if train:
-        #         # only need these feature for fitting the detector
-        #         f1_features = F.conv3d(input=frame1, weight=weights)
-        #         f1_features = f1_features.reshape((mask.size(0), 
-        #                                         self.params['embedding_len']))
-        #     else:
-        #         f1_features = None
-
-        #     f2_intersec = torch.unique(frame2)
-        #     print(f2_intersec)
-        #     f2_features = torch.zeroes((mask.size(0),
-        #                                self.params['embedding_len'])).cuda()
-
-        #     # for batch in range(mask.size(0)):
-        #         # f2_features[batch, ...] = 
-                
-        #     # f2_features = (weight_intersect == f2_intersec)
-
-
-
-        #     print(f2_features)
-
-        #     exit()
-        # else:
         if train:
             # only need these feature for fitting the detector
             f1_features = F.conv3d(input=frame1, weight=weights)
@@ -98,7 +77,7 @@ class Detector(nn.Module):
 
         return f1_features, f2_features
 
-    def mutate_mask(self, mask):
+    def mutate_mask(self, mask, z_delta, x_delta, y_delta):
         '''
             For now the mutated partial mask is just the partial mask
             shifted in each direction/dimension by its own respective bodylength.
@@ -110,13 +89,13 @@ class Detector(nn.Module):
                     (embedding_len, mask_C, mask_Z, mask_X, mask_Y)
         '''
         # find the indexes of all nonzero elements in tensor
-        locs = torch.nonzero(mask, as_tuple=False) 
+        # locs = torch.nonzero(mask, as_tuple=False) 
         # print(locs)
         # find the delta, which is the range of each z,x,y dim,
         # to shift the mask by it by its own body length
-        z_delta = (max(locs[:, 1]) - min(locs[:, 1])) + 1
-        x_delta = (max(locs[:, 2]) - min(locs[:, 2])) + 1
-        y_delta = (max(locs[:, 3]) - min(locs[:, 3])) + 1
+        # z_delta = (max(locs[:, 1]) - min(locs[:, 1])) + 1
+        # x_delta = (max(locs[:, 2]) - min(locs[:, 2])) + 1
+        # y_delta = (max(locs[:, 3]) - min(locs[:, 3])) + 1
         
         # create empty mask that will hold the shifted partial mask
         mutated_mask = torch.empty((self.params['embedding_len'],
@@ -127,7 +106,7 @@ class Detector(nn.Module):
                                     # .cuda()
 
         # create custom kernel filters by transforming mask
-        mutated_mask[0, ...] = mask  # original mask mask
+        mutated_mask[0, ...] = mask  # original mask torch.zeros(mask.shape)
         mutated_mask[1, ...] = torch.roll(mask,
                                           shifts=(0, x_delta, 0),
                                           dims=(1, 2, 3))  # roll x by x_delta
@@ -175,9 +154,9 @@ class Detector(nn.Module):
         # need to reduce the dimesionality of the data
         pca1 = KernelPCA(n_components=2, kernel='sigmoid', gamma=0.7)
         transformed_data = pca1.fit_transform(data)
-      
+        print("Explained Variance Ratio")
         # dbscan will label the clusters
-        dbscan = DBSCAN(eps=0.02, min_samples=10)
+        dbscan = DBSCAN(eps=0.05, min_samples=10)
         dbscan.fit(transformed_data)
 
         if graph:
@@ -217,8 +196,11 @@ class Detector(nn.Module):
         plt.scatter(non_cores[:, 0], non_cores[:, 1],
                     c=dbscan.labels_[non_core_mask], marker=".")
 
-        # plt.legend()
-        
+        for i, indx in enumerate(dbscan.core_sample_indices_):
+            if i % 50 == 0:
+                loc = dbscan.components_[i]
+                plt.annotate(str(dbscan.labels_[indx]), loc)
+
         if show_xlabels:
             plt.xlabel("$x_1$", fontsize=14)
         else:

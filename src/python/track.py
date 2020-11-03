@@ -17,6 +17,9 @@ class Track:
         self.__centroid = centroid  # immutable
         self.state = state
         self.origin = origin
+        self.backward_conf = 0
+        self.forward_conf = 0
+        self.match_count = None
 
     @property
     def locs(self):
@@ -27,7 +30,7 @@ class Track:
         return self.__centroid
 
     def __repr__(self):
-        return "\n<Track \nlocs:%s \nid:%s \ncentroid:%s \nstate:%s \norigin:%s>" % (len(self.locs), self.id, self.centroid, self.state, self.origin)
+        return "\n<Track \nlocs:%s \nid:%s \ncentroid:%s \nstate:%s \norigin:%s \nbackward_conf:%s \nforward_conf:%s \nmatch_count:%s>" % (len(self.locs), self.id, self.centroid, self.state, self.origin, self.backward_conf, self.forward_conf, self.match_count)
 
     def __eq__(self, other):
         if not isinstance(other, Track):

@@ -11,12 +11,14 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision import transforms
 import matplotlib.pyplot as plt
+import random
+import scipy
 
 from torch.multiprocessing import Process, Queue
 # import multiprocessing
 import torch.multiprocessing as multiprocessing
 
-from util import load_json, load_pickle, save_pickle, save_tracks_as_json, calc_euclidean_dist
+from util import load_json, load_pickle, save_pickle, save_tracks_as_json, calc_euclidean_dist, argmin
 from detector_3D import Detector
 from track import Track, Status
 import info
@@ -36,7 +38,7 @@ args = parser.parse_args()
 
 class ToTensorFrame(object):
     '''
-        Convert ndarrays of (280 H, 512 W, 13 Z) 
+        Convert ndarrays of (280 H, 512 W, 13 Z)
         to Tensors (1 batch, 1 channel, 13 Z, 280 H, 512 W).
     '''
 
@@ -120,6 +122,7 @@ class Tracker():
         # store the posrates for graphing
         self.f1_pos_rate_list = []
         self.f2_pos_rate_list = []
+        self.match_counts = {}
 
         # store some statistics
         self.DEATH_COUNT = 0
@@ -209,8 +212,13 @@ class Tracker():
 
         return width, height
 
-    def gen_pos_rates(self):
-        pass
+    def calc_distance(self, locs1, locs2):
+        '''
+            return the min distance between the closest point in locs1 and locs2
+        '''
+        # NOTE: KD tree might be more efficient here
+        distances = scipy.spatial.distance.cdist(locs1, locs2)
+        return np.min(distances)
 
     def predictor_features(self, epoch_id):
         # get the clusters in this frame
@@ -253,7 +261,7 @@ class Tracker():
             _, f2_feature = self.detector(frame1_crop.float(),
                                           frame2_crop.float(),
                                           mask_crop.float(),
-                                          train=True)
+                                          train=False)
 
             partial_predictions = self.detector.predict(
                 f2_feature.cpu().numpy())
@@ -278,18 +286,18 @@ class Tracker():
 
                 # find closest track with most intersetions
                 for nextTrack in self.tracks[frame_num + 1]:
-                    if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
+                    if self.calc_distance(currTrack.locs, nextTrack.locs) < minDist:
                         # intersect = np.isin(currLocs,nextTrack.locs, assume_unique=True)
                         # intersect_num = np.count_nonzero(intersect.all(0).any())
 
                         # if intersect_num >= maxIntersect:
-                        #     minDist = calc_euclidean_dist(
+                        #     minDist = self.calc_distance(
                         #         currTrack.centroid, nextTrack.centroid)
                         #     maxIntersect = intersect_num
                         #     minTrack = nextTrack
                         minTrack = nextTrack
-                        minDist = calc_euclidean_dist(
-                            currTrack.centroid, nextTrack.centroid)
+                        minDist = self.calc_distance(
+                            currTrack.locs, nextTrack.locs)
 
                 forward_state[currTrack] = minTrack
                 forward_rates[currTrack] = forward_pos_rate
@@ -299,6 +307,13 @@ class Tracker():
         # return_dict['fs'] = forward_state
         # return_dict['fr'] = forward_rates
         return forward_state, forward_rates
+
+    def add_match_counts(self, forward_match_count, backward_match_count):
+        count_pair = (forward_match_count, backward_match_count)
+        if count_pair in self.match_counts.keys():
+            self.match_counts[count_pair] += 1
+        else:
+            self.match_counts[count_pair] = 1
 
     def backward_scan(self, frame_num):
         backward_state = {}
@@ -320,7 +335,7 @@ class Tracker():
             _, f2_feature = self.detector(frame1_crop.float(),
                                           frame2_crop.float(),
                                           mask_crop.float(),
-                                          train=True)  # .cuda()
+                                          train=False)  # .cuda()
 
             partial_predictions = self.detector.predict(
                 f2_feature.cpu().numpy())
@@ -344,7 +359,7 @@ class Tracker():
                 # currLocs = currTrack.locs
 
                 for nextTrack in self.tracks[frame_num - 1]:
-                    if calc_euclidean_dist(currTrack.centroid, nextTrack.centroid) < minDist:
+                    if self.calc_distance(currTrack.locs, nextTrack.locs) < minDist:
                         # find closest track with most intersetions
                         # intersect = np.isin(
                         #     currLocs, nextTrack.locs, assume_unique=True)
@@ -352,13 +367,14 @@ class Tracker():
                         #     intersect.all(0).any())
 
                         # if intersect_num >= maxIntersect:
-                        #     minDist = calc_euclidean_dist(
+                        #     minDist = self.calc_distance(
                         #         currTrack.centroid, nextTrack.centroid)
                         #     maxIntersect = intersect_num
                         #     minTrack = nextTrack
                         minTrack = nextTrack
-                        minDist = calc_euclidean_dist(
-                            currTrack.centroid, nextTrack.centroid)
+                        minDist = self.calc_distance(
+                            currTrack.locs, nextTrack.locs)
+
                 backward_state[currTrack] = minTrack
                 backward_rates[currTrack] = backward_pos_rate
                 tqdm.write('BACKWARD - Cluster Num: {}, Frame Num: {}, Match: {}'.format(
@@ -371,7 +387,7 @@ class Tracker():
     def Tget_predictor_results(self, frame_num, forward_scan=True, backward_scan=True):
         '''
             frame_num: the track index [1, 70]
-            [forward, backward]_state: each index points to list of 
+            [forward, backward]_state: each index points to list of
                                        clusters that it may match too, if any
 
         '''
@@ -412,8 +428,8 @@ class Tracker():
     def get_predictor_results(self, frame_num, forward_scan=True, backward_scan=True):
         '''
             frame_num: the track index [1, 70]
-            [forward, backward]_state: each index points to list of 
-                                       clusters that it may match too, if any
+            [forward, backward]_state: each index points to a
+                                       cluster that it may match too, if any
 
         '''
         forward_state = {}
@@ -432,48 +448,64 @@ class Tracker():
     def find_relations(self, currFrame, forward_state, forward_rates, backward_state, backward_rates):
         for forward_key in forward_state.keys():
             # how many objects in next frame point to this object
-
             forward_match_count = list(
                 backward_state.values()).count(forward_key)
 
             backward_key = forward_state[forward_key]
             if backward_key:
-                # how many objects in previous frame point to this object
+                # how many objects in current frame point to this object
                 backward_match_count = list(
                     forward_state.values()).count(backward_key)
             else:
                 backward_match_count = 0
+            self.add_match_counts(forward_match_count, backward_match_count)
 
             # find the track asscoiated with forward_key
             track_indx = self.tracks[currFrame].index(forward_key)
             currTrack = self.tracks[currFrame][track_indx]
+            currTrack.match_count = (forward_match_count, backward_match_count)
+            currTrack.forward_conf = forward_rates[forward_key]
+            if backward_key:
+                currTrack.backward_conf = backward_rates[backward_key]
 
-            if forward_match_count == 0 or backward_match_count == 0:
+
+            if forward_match_count == 0 and backward_match_count == 0:
                 # object dead no match in next frame
                 tqdm.write('\t DEATH forward_match_count: {} backward_match_count; {}'
                            .format(forward_match_count, backward_match_count))
                 currTrack.state = Status.DEAD
+                currTrack.forward_conf = forward_rates[forward_key]
                 self.DEATH_COUNT += 1
-                continue
 
             if forward_match_count == 1 and backward_match_count == 1:
-                # object has 1 to 1 match with next frame
-                tqdm.write('\t MATCH forward_match_count: {} backward_match_count; {}'
-                           .format(forward_match_count, backward_match_count))
-                if forward_rates[forward_key] >= self.params['pos_threshhold']\
-                        and backward_rates[backward_key] >= self.params['pos_threshhold']:
-                    # find the track asscoiated with backward_key
+                # object has strong 1 to 1 match with next frame
+                if backward_key:
+                    tqdm.write('\t MATCH forward_match_count: {} backward_match_count; {}'
+                            .format(forward_match_count, backward_match_count))
                     track_indx = self.tracks[currFrame + 1].index(backward_key)
                     track = self.tracks[currFrame + 1][track_indx]
                     track.id = currTrack.id
                     track.state = currTrack.state
                     track.origin += currTrack.origin + \
                         Status.MATCH.format(currFrame)
-
                     self.ONE_TO_ONE_COUNT += 1
+            elif forward_match_count + backward_match_count == 1:
+                # object has weak 1 to 1 match with next frame
+                if backward_key:
+                    if forward_rates[forward_key] + backward_rates[backward_key] >= 0.5 :
+                        tqdm.write('\t MATCH forward_match_count: {} backward_match_count; {}'
+                                .format(forward_match_count, backward_match_count))
+                        track_indx = self.tracks[currFrame + 1].index(backward_key)
+                        track = self.tracks[currFrame + 1][track_indx]
+                        track.id = currTrack.id
+                        track.state = currTrack.state
+                        track.origin += currTrack.origin + \
+                            Status.MATCH.format(currFrame)
+                        self.ONE_TO_ONE_COUNT += 1
+                        continue
 
             # if forward_match_count > 1 and backward_match_count == 1:
-            if forward_match_count > 1:
+            if forward_match_count > 1 or (forward_match_count == 1 and backward_match_count == 0):
                 # object has split in next frame, 1 to many relation
                 tqdm.write('\t SPLIT forward_match_count: {} backward_match_count; {}'
                            .format(forward_match_count, backward_match_count))
@@ -489,11 +521,13 @@ class Tracker():
                         track.state = Status.ACTIVE
                         track.origin += Status.SPLIT.format(
                             currFrame, currTrack.id)
-
+                        # track.backward_conf = backward_rates[backward_keys]
+                        # track.forward_conf = forward_rates[forward_key]
                 self.SPLIT_COUNT += 1
 
+
             # if forward_match_count == 1 and backward_match_count > 1:
-            if backward_match_count > 1:
+            if backward_match_count > 1 or (backward_match_count == 1 and forward_match_count == 0):
                 # object has merged with another object, many to 1 relation
                 tqdm.write('\t MERGE forward_match_count: {} backward_match_count; {}'
                            .format(forward_match_count, backward_match_count))
@@ -503,6 +537,8 @@ class Tracker():
                 track.id = self.nextID
                 self.nextID += 1
                 track.state = Status.ACTIVE
+                # track.backward_conf = backward_rates[backward_key]
+                # track.forward_conf = forward_rates[forward_key]
                 # TODO replace with filter
                 for forward_keys in forward_state.keys():
                     if forward_state[forward_keys] == backward_key:
@@ -524,6 +560,7 @@ class Tracker():
                 self.nextID += 1
                 nextTrack.state = Status.ACTIVE
                 nextTrack.origin += Status.BIRTH.format(currFrame + 1)
+                nextTrack.backward_conf = backward_rates[nextTrack]
                 self.BIRTH_COUNT += 1
 
     def train_all(self):
@@ -533,17 +570,17 @@ class Tracker():
             # dynamically calculate the number of training examples
             trainNum = self.counts[str(self.currSearchFrame)]
             f1_feature, f2_feature = self.predictor_features(epoch_id)
-            self.trainExample += 1
+            self.trainExample += random.randint(1, 50)
             f1 = np.append(f1, f1_feature.cpu().numpy(), axis=0)
             f2 = np.append(f2, f2_feature.cpu().numpy(), axis=0)
 
-            if self.trainExample == trainNum:
+            if self.trainExample >= trainNum:
                 self.currSearchFrame += 1
-                self.trainExample = 0
+                self.trainExample = random.randint(1, 50)
             # reset the current search frame if all clusters have been searched
             if self.currSearchFrame == 70:
-                self.currSearchFrame = 0
-                self.trainExample = 0
+                self.currSearchFrame = 1
+                self.trainExample = random.randint(1, 50)
 
         np.save('../../data/f1.npy', f1)
         np.save('../../data/f2.npy', f2)
@@ -559,9 +596,10 @@ class Tracker():
                    find the minimum distance cluster from it and store this relation
                    in a dict
             2. repeat step1 for the current frame and the next frame, be sure
-               to use the predictor features from the next frame to reduct computation for the
+               to use the predictor features from the next frame to reduce computation for the
                next set of frames
-            3. state lists are filled then we can determine clusters relations by forming a graph
+            3. state lists are filled, which are graphs with each cluster being a node that can
+               point to zero or more other nodes.
             4. Will assign ID's to all tracks in self.tracks
         '''
         # will hold each track in a frame and what it points too
@@ -674,25 +712,25 @@ if __name__ == "__main__":
     if args.task == "optim_param":
         print('-------------- Show Tracking Statistics ------------------')
         
-        # # histogram of pos detection rates on forward scan and self scan
-        # if not(path.exists('../../data/self_pos_rate_list.pickle') and path.exists('../../data/forward_pos_rate_list.pickle')):
-        #     print('Warning - need to run tracker.gen_pos_rates first.')
-        #     tracker.gen_pos_rates()
-        # info.hist_pos_rates('../../data/self_pos_rate_list.pickle',
-        #                     '../../data/forward_pos_rate_list.pickle')
+        # histogram of pos detection rates on forward scan and self scan
+        if not(path.exists('../../data/self_pos_rate_list.pickle') and path.exists('../../data/forward_pos_rate_list.pickle')):
+            print('Warning - need to run tracker.gen_pos_rates first.')
+            tracker.gen_pos_rates()
+        info.hist_pos_rates('../../data/self_pos_rate_list.pickle',
+                            '../../data/forward_pos_rate_list.pickle')
 
-        # # histogram of whole cluster sizes
-        # if not path.exists('../../data/cluster_size_list.pickle'):
-        #     print('Warning - need to run tracker.calc_sizes first.')
-        #     tracker.calc_sizes()
-        # info.hist_sizes('../../data/cluster_size_list.pickle')
+        # histogram of whole cluster sizes
+        if not path.exists('../../data/cluster_size_list.pickle'):
+            print('Warning - need to run tracker.calc_sizes first.')
+            tracker.calc_sizes()
+        info.hist_sizes('../../data/cluster_size_list.pickle')
         
-        # # histogram of tracking events
-        # info.event_counts('../../data/tracks_protein_pretty.json')
+        # histogram of tracking events
+        info.event_counts('../../data/tracks_protein_pretty.json')
 
-        # show tracking compared to ground truth
-        info.tracking_results('../../data/labeled_protein_tracks.pickle',
-                              '../../data/test/mapping.json')
+        # # show tracking compared to ground truth
+        # info.tracking_results('../../data/labeled_protein_tracks.pickle',
+        #                       '../../data/test/mapping.json')
 
     elif args.task == "train":
         print('-------------- Train the Protein Tracker ----------------')
