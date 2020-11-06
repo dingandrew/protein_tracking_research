@@ -11,16 +11,24 @@ Raw Sprites Dataset | Labeled Sprites Dataset
 -------------------- | -----------------------
 ![raw_sprites](./images/raw_sprites.gif) | ![labeled_sprites](./images/labeled_sprites.gif)
 
-Full video in ./data
+Not a perfect demostration as annotated datasets with many to one or one to many tracking are non-existent. Full video in ./data 
 
 ### Feature Embeddings Clustering
-Sprites Dataset 2D Distribution| Protein Dataset 2D Distribution
--------------------- | -----------------------
-![Plot](./images/sprite_1.png) | ![Plot](./images/protein_1.png)
+Protein Dataset 2D Distribution | Protein Dataset Clustering
+------------------------ | ---------------------------
+ ![Plot](./images/protein_1.png) | ![Plot](./images/protein_2.png) 
 
-Sprites Dataset Clustering | Protein Dataset Clustering
--------------------- | -----------------------
-![Plot](./images/sprite_2.png) | ![Plot](./images/protein_2.png) 
+In the left image we see the 2D mapping of the feature embeddings. In the right image we see each cluster labled by DBSCAN. The cluster classes have sizes:
+
+Class Labels | Cluster Sizes 
+------------ | -------------
+0 | 16773
+1 | 994
+2 | 2472
+3 | 281
+
+Total feature embeddings: 10260
+ 
 
 ### Set Up Enviroment
 
@@ -41,7 +49,7 @@ Portion Tracking in 4D Fluorescence Microscopy Imagery with Deep Feature Maps pa
 
 ```
 
-/cell_tracking$ python3 data.py
+/cell_tracking$ python3 data.py --h
 
 ```
 Running this will generate a numpy dataset from the raw *.nii files. Will save in
@@ -51,12 +59,12 @@ Running this will generate a numpy dataset from the raw *.nii files. Will save i
 
 ```
 
-/cell_tracking/src/python$ python3 tracker.py
+/cell_tracking/src/python$ python3 protein_tracker.py --task train 
 
+/cell_tracking/src/python$ python3 protein_tracker.py --task predict 
 ```
 
 This will run tracking on the dataset and store the results in data/ as json files.
-Uncomment functions in main() if doing it for the first time.
 
 labled_tracks.pickle: Contains a python dict that holds the tracking results
 
