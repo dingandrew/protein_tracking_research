@@ -1,4 +1,6 @@
 disp('Graph Results of Tracking');
+% Using the ./data/tracks_protein_frame.json generated from tracking algo 
+% Create figures with correct labels and save these figures
 
 %need to swap x and y and add 1 to each axis 
 %matlab reads the axis a little bit wierd

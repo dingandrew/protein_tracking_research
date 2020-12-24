@@ -1,3 +1,7 @@
+% Create a Demo figure with each frame and correct labels for each cluster
+% requires that ./data/labled_frames contains figures with labeled clusters
+
+
 function [] = demo()
 % Plot different plots according to slider location.
 % open initial figure
@@ -71,7 +75,9 @@ function [] = sl_call(varargin)
 [h,S] = varargin{[1,3]};  % calling handle and data structure.
 cla
 data_tracked = './data/labled_frames/%d_tracked.fig';
-
+% display(S.fh);
+% display(gcf)
+% return;
 fNum = round(get(h,'value'));
 fprintf('ON FRAME: %d\n', fNum);
 if fNum > 0 && fNum < 71

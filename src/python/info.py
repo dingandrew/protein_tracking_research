@@ -1,8 +1,8 @@
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-
-from util import load_json, load_pickle, save_json
+import networkx as nx
+from util import load_json, load_pickle, save_json, calc_euclidean_dist
 from track import Track, Status
 
 '''
@@ -57,83 +57,111 @@ def calc_results(TP, TN, FN, FP):
     print('Accuracy: ', accuracy)
 
 
-def tracking_results(labeled_tracks_path, mappings_json_path):
-    # labeled_tracks = load_pickle(labeled_tracks_path)
-    labeled_tracks = load_json('../../data/tracks_protein_pretty.json')
-    mappings = load_json(mappings_json_path)
-    results = {}
-    for key in mappings.keys():
-        results[key] = {key: [] for key in range(1, 71)}
 
-    print(results)
-    save_json(results, '../../data/results.json')
-    # for map_key in mappings.keys():
-    #     start_track = mappings[map_key]
-    #     if type(start_track) is list:
-    #         continue
+
+
+
+def get_track_history(id, labeled_tracks_path, frame_track_path):
+    labeled_tracks = load_json(labeled_tracks_path)
+    frame_tracks = load_json(frame_track_path)
+    curr_frame_num = 1
+    curr_id = id
+    track = None
+    results = {key: None for key in range(1, 71)}
+    alive = True
+
+    # G = nx.DiGraph()
+    # pos = nx.multipartite_layout(G)
+    # prev = 'Start'
+    # G.add_node(prev)
+    while alive:
+        tracks = labeled_tracks[str(curr_id)]
+        first_track = tracks[0]
+        last_track = tracks[-1]
+        start_frame = first_track['Frame']
+        last_frame_num = tracks[-1]['Frame']
+
+        # print(curr_id)
+        # print(start_frame, last_frame_num)
+        for frame_num in range(start_frame, last_frame_num + 1):
+            if results[frame_num] is None:
+                results[frame_num] = 'MATCH ' + str(curr_id)
+                # new_node = str(frame_num) + ' : ' + str(curr_id)
+                # G.add_edge(prev, new_node)
+                # prev = new_node
+   
+
+        # check the last object in the tracks list if it has a forward_conf
+        # then check if it is a split or merge or death
+        if tracks[-1]['forward_conf'] > 0:
+            event, curr_id = find_next_track(
+                curr_id, frame_tracks[str(last_frame_num + 1)], labeled_tracks)
+            results[last_frame_num + 1] = event
+            # new_node = str(frame_num + 1) + ' : ' + str(curr_id)
+            # G.add_edge(prev, new_node)
+            # prev = new_node
+        else:
+            results[last_frame_num + 1] = 'DEAD'
+            alive = False  
+            # new_node = str(last_frame_num + 1) + ' : ' + str(curr_id)
+            # G.add_edge(prev, new_node)
+       
         
-    #     active = True
-    #     while active:
+    save_json(results, './data/test/{}/{}results.json'.format(int(float(id)), int(float(id))))
 
-    #         obj_tracks = labeled_tracks[str(float(start_track))]
-            
+    # nx.draw_shell(G, with_labels=True, font_weight='bold')
+    # plt.show()
 
-    #         for track_dict in obj_tracks:
-    #             results[map_key][track_dict['Frame']].a
-
-
-    #             active = True if track_dict['state'] == Status.ACTIVE else False
-
-
-
-
-
-
-
-
-
-
-
-
-    # exit()
-
+def find_next_track(curr_id, frame_search, labeled_tracks):
+    matched = []
+    for track in frame_search:
+        if str(curr_id) in track['origin'].split():
+            matched.append(track)
 
     
+    # the new parent track uses the longest living object
+    track = max(matched, key=lambda t: len(labeled_tracks[str(t['id'])]))
+    curr_id = track['id']
 
-    clusters = [id for id in range(1, 41)]
-    tracking = tracking[:, 0:40]
+    event = ''
+    if len(matched) == 1:
+        event = matched[0]['origin'] + ' => ' + str(curr_id)
+    elif len(matched) > 1:
+        for t in matched:
+            event += t['origin']
 
-    for frame in range(1, 3):
-        for track in self.labeledTracks[frame]:
-            # print(track.id)
-            if int(track.id) in clusters:
-                tracking[frame + 1, int(track.id) - 1] = 1
-
-    # print(tracking)
-
-    fig, ax = plt.subplots()
-    fig.subplots_adjust(left=0.05, right=0.99)
-    im = ax.imshow(tracking, norm=colors.Normalize(vmin=0, vmax=1))
-
-    # We want to show all ticks...
-    ax.set_xticks(np.arange(len(clusters)))
-    ax.set_yticks(np.arange(len(methods)))
-    # ... and label them with the respective list entries
-    ax.set_xticklabels(clusters)
-    ax.set_yticklabels(methods)
-
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-            rotation_mode="anchor")
-
-    # Loop over data dimensions and create text annotations.
-    for y in range(len(methods)):
-        for x in range(len(clusters) ):
-            text = ax.text(x, y, round(tracking[y, x], 3),
-                        ha="center", va="center", color="w")
-
-    ax.set_title("Tracking results")
-    ax.set_xlabel("Cluster ID")
-    plt.show()
+        event = event + ' => ' + str(curr_id)
+    elif len(matched) == 0:
+        print('Error')
+        exit()
 
 
+    return event, curr_id 
+
+
+
+
+if __name__ == "__main__":
+    print('Test')
+    labeled_tracks_path = './data/tracks_protein_pretty.json'
+    frame_track_path = './data/tracks_protein_frame.json'
+    # get_track_history('171.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('130.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('258.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('205.0', labeled_tracks_path, frame_track_path)
+
+    # get_track_history('209.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('141.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('178.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('5.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('101.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('142.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('94.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('98.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('131.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('204.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('62.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('161.0', labeled_tracks_path, frame_track_path)
+    # get_track_history('162.0', labeled_tracks_path, frame_track_path)
+
+    get_track_history('4064.0', labeled_tracks_path, frame_track_path)
