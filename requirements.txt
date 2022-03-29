@@ -73,7 +73,7 @@ opencv-python==4.4.0.42
 opt-einsum==3.2.1
 packaging==20.4
 pandas==1.0.5
-paramiko==2.6.0
+paramiko==2.10.1
 parso==0.7.1
 path-and-address==2.0.1
 pathspec==0.8.0
