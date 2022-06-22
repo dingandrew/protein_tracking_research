@@ -65,7 +65,7 @@ matplotlib==3.2.2
 monotonic==1.5
 netifaces==0.10.4
 nibabel==3.1.1
-numpy==1.19.0
+numpy==1.22.0
 nvidia-ml-py3==7.352.0
 oauthlib==3.1.0
 olefile==0.46
